@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: obsidian-ingress
+  labels:
+    app.kubernetes.io/name: obsidian-ingress
+spec:
+  ingressCLassName: nginx
+  rules:
+    -http:
+      paths:
+        - pathType: Prefix
+          path: "/api/sandbox"
+          backend:
+            service:
+              name: sandbox-service
+              port:
+                number: 80
