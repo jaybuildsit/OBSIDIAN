@@ -5,14 +5,14 @@ metadata:
   labels:
     app.kubernetes.io/name: obsidian-ingress
 spec:
-  ingressCLassName: nginx
+  ingressClassName: nginx
   rules:
-    -http:
-      paths:
-        - pathType: Prefix
-          path: "/api/sandbox"
-          backend:
-            service:
-              name: sandbox-service
-              port:
-                number: 80
+    - http:
+        paths:
+          - pathType: Prefix
+            path: "/api/sandbox"
+            backend:
+              service:
+                name: sandbox-service
+                port:
+                  number: 80
