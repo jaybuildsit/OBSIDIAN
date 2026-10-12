@@ -17,19 +17,26 @@ export async function createPod(sandboxId) {
                     imagePullPolicy: "IfnotPresent",
                     name: 'sandbox-container',
                     ports: [{ containerPort: 5173, name: "http" }],
-                    resources:{
-                        limits:{
-                            cpu:"500m",
-                            memory:"IGI"
+                    resources: {
+                        limits: {
+                            cpu: "500m",
+                            memory: "IGI"
                         },
-                        requests:{
-                            cpu:"250m",
-                            memory:"500Mi"
+                        requests: {
+                            cpu: "250m",
+                            memory: "500Mi"
                         }
                     }
                 }
             ]
         }
     }
+
+    const response = await k8sCoreV1Api.createNamespacedPod({
+        namespace: 'default',
+        body: podManifest
+    })
+
+    return response;
 
 }
