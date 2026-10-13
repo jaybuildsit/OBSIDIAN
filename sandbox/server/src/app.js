@@ -15,7 +15,7 @@ app.get("/api/sandbox/health", (req, res) => {
   res.status(200).json({ message: "Server is healthy", status: "ok" });
 });
 
-app.post("/api/sandbox/create", async (req, res) => {
+app.post("/api/sandbox/create/", async (req, res) => {
   const sandboxId = uuidv4();
 
   await Promise.all([
@@ -23,7 +23,12 @@ app.post("/api/sandbox/create", async (req, res) => {
     createService(sandboxId)
   ]);
 
-  res.status(201).json({ message: "Sandbox created successfully", sandboxId, previewUrl: `http://localhost:5173/sandbox/${sandboxId}` });
+  res.status(201).json({
+    message: "Sandbox created successfully",
+    sandboxId,
+    previewUrl: `http://localhost:5173/sandbox/${sandboxId}`
+  });
+
 
 
 })

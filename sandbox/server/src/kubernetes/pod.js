@@ -14,13 +14,13 @@ export async function createPod(sandboxId) {
             containers: [
                 {
                     image: "template",
-                    imagePullPolicy: "IfnotPresent",
+                    imagePullPolicy: "IfNotPresent",
                     name: 'sandbox-container',
                     ports: [{ containerPort: 5173, name: "http" }],
                     resources: {
                         limits: {
                             cpu: "500m",
-                            memory: "IGI"
+                            memory: "1Gi"
                         },
                         requests: {
                             cpu: "250m",
