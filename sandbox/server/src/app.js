@@ -26,7 +26,7 @@ app.post("/api/sandbox/create/", async (req, res) => {
   res.status(201).json({
     message: "Sandbox created successfully",
     sandboxId,
-    previewUrl: `http://localhost:5173/sandbox/${sandboxId}`
+    previewUrl: `http://${sandboxId}.preview.localhost`
   });
 
 
