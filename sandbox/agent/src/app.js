@@ -8,6 +8,12 @@ import path from 'path'
 const WORKING_DIR = "/workspace";
 
 const app = express();
+app.use(morgan('dev'));
+app.use(express.json());
+
+app.use(express.urlencoded({ extended: true }));
+
+
 // app.use(morgan('combined'));
 
 app.get('/', (req, res) => {
@@ -69,18 +75,18 @@ app.get('/read-files', async (req, res) => {
     const fileList = files.split(',');
 
     const results = await Promise.all(fileList.map(async (file) => {
-        const filePath = `${WORKING_DIR}/${file}`;
+        const filePath = path.join(WORKING_DIR, file);
         try {
             const content = await fs.promises.readFile(filePath, 'utf-8');
             return {
-                [filePath]: content,
+                [filePath.replace(WORKING_DIR,'')]: content,
             }
             // res.write(`Content of ${file}:\n${content}\n\n`);
 
         } catch (err) {
 
             return {
-                [filePath]: `Error reading file:${err.message}`,
+                [filePath.replace(WORKING_DIR,'')]: `Error reading file:${err.message}`,
             }
 
             // res.write(`Error reading ${file}:${err.message}\n\n`);
@@ -139,7 +145,7 @@ app.patch("/update-files", async (req, res) => {
 })
 
 app.post('/create-files', async (req, res) => {
-    const files = req.nody.files;
+    const files = req.body.files;
 
     if (!files || !Array.isArray(files)) {
         return res.status(400).json({
@@ -165,6 +171,11 @@ app.post('/create-files', async (req, res) => {
         }
 
     }))
+
+    res.status(200).json({
+        message: 'File Created Successfully',
+        results,
+    })
 
 
 })
