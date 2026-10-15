@@ -160,6 +160,7 @@ app.post('/create-files', async (req, res) => {
         const filePath = path.join(WORKING_DIR, file);
 
         try {
+            await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
             await fs.promises.writeFile(filePath, content, 'utf-8');
             return {
                 [filePath]: 'File created successfully',
