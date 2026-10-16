@@ -11,6 +11,8 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@google/genai": "^2.30.0",
+    "@langchain/google-genai": "^2.3.2",
     "@langchain/langgraph": "^1.5.0",
     "@langchain/mistralai": "^1.2.0",
     "axios": "^1.20.0",
