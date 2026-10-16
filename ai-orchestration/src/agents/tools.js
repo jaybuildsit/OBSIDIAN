@@ -8,7 +8,7 @@ const SANDBOX_HOST =
 const SANDBOX_URL = "http://127.0.0.1";
 
 export const listFiles = tool(
-    async () => {
+    async ({}) => {
         console.log("=======================");
         console.log("Using ListFiles tool");
         console.log("=======================");

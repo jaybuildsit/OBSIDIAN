@@ -28,7 +28,7 @@ const result = await agent.invoke({
     messages: [
         {
             role: "user",
-            content: "Change only the counter button text from 'Count is {count}' to 'Clicks: {count}'. Do not change anything else in the project."
+            content: "Change only the counter button text from 'Count is {count}' to 'Touch: {count}'. Do not change anything else in the project."
         }
     ]
 });
