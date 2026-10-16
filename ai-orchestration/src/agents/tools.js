@@ -3,7 +3,7 @@ import { tool } from "langchain";
 import * as z from "zod";
 
 const SANDBOX_HOST =
-    "01a13fe7-e629-7597-b899-628e7b1d2266.agent.localhost";
+    "01a1442d-bade-7535-940b-fe094180ad3a.agent.localhost";
 
 const SANDBOX_URL = "http://127.0.0.1";
 

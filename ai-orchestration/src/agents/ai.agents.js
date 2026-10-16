@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatOpenRouter } from "@langchain/openrouter";
 import {
     listFiles,
     readFiles,
@@ -7,9 +7,9 @@ import {
 } from "./tools.js";
 import { createAgent } from "langchain";
 
-const model = new ChatGoogleGenerativeAI({
-    model: "gemini-3.6-flash",
-    apiKey: process.env.GEMINI_API_KEY,
+const model = new ChatOpenRouter({
+    model: "nvidia/nemotron-3.5-super-vl:free",
+    apiKey: process.env.OPENROUTER_API_KEY,
     temperature: 0.7,
 });
 
@@ -28,10 +28,9 @@ const result = await agent.invoke({
     messages: [
         {
             role: "user",
-            content: "List the files in the project."
+            content: "Change only the counter button text from 'Count is {count}' to 'Clicks: {count}'. Do not change anything else in the project."
         }
     ]
 });
 
 console.log("✅ Agent finished");
-console.log(result);
