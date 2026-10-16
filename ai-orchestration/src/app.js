@@ -6,9 +6,15 @@ const app = express();
 app.use(morgan('dev'));
 app.use(express.json());
 
-app.get('/api/ai/healthz',(eq,res)=>{
-    res.status(200).json({status:'ok'});
+app.get("/api/status/healthz", (req, res) => {
+    res.status(200).json({ status: 'Working Good' });
+
+
 })
+
+// app.get('/api/ai/healthz', (eq, res) => {
+//     res.status(200).json({ status: 'ok' });
+// })
 
 
 
