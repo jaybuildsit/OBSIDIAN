@@ -2,10 +2,8 @@ import axios from "axios";
 import { tool } from "langchain";
 import * as z from "zod";
 
-const SANDBOX_HOST =
-    "01a1442d-bade-7535-940b-fe094180ad3a.agent.localhost";
-
-const SANDBOX_URL = "http://127.0.0.1";
+const SANDBOX_URL =
+    "http://sandbox-service-01a14913-c1c3-76ab-b28c-5848c5594351:3000";
 
 export const listFiles = tool(
     async ({}) => {
@@ -14,29 +12,19 @@ export const listFiles = tool(
         console.log("=======================");
 
         const response = await axios.get(
-            `${SANDBOX_URL}/list-files`,
-            {
-                headers: {
-                    Host: SANDBOX_HOST,
-                },
-            }
+            `${SANDBOX_URL}/list-files`
         );
 
         console.log("=======================");
-        console.log(
-            "Response from ListFiles tool",
-            response.data
-        );
+        console.log("Response from ListFiles tool", response.data);
         console.log("=======================");
 
         return JSON.stringify(response.data.files);
     },
     {
         name: "list_files",
-
         description:
             "List all the files in the project directory. This is useful for understanding what files are available to work with.",
-
         schema: z.object({}),
     }
 );
@@ -48,29 +36,19 @@ export const readFiles = tool(
         console.log("=======================");
 
         const response = await axios.get(
-            `${SANDBOX_URL}/read-files?files=${files.join(",")}`,
-            {
-                headers: {
-                    Host: SANDBOX_HOST,
-                },
-            }
+            `${SANDBOX_URL}/read-files?files=${files.join(",")}`
         );
 
         console.log("=======================");
-        console.log(
-            "Response from ReadFiles tool",
-            response.data
-        );
+        console.log("Response from ReadFiles tool", response.data);
         console.log("=======================");
 
         return JSON.stringify(response.data);
     },
     {
         name: "read_files",
-
         description:
             "Read the contents of specified files. This is useful for understanding the content of files that are relevant to the task at hand.",
-
         schema: z.object({
             files: z
                 .array(z.string())
@@ -91,29 +69,19 @@ export const updateFiles = tool(
             `${SANDBOX_URL}/update-files`,
             {
                 updates: files,
-            },
-            {
-                headers: {
-                    Host: SANDBOX_HOST,
-                },
             }
         );
 
         console.log("=======================");
-        console.log(
-            "Response from UpdateFiles tool",
-            response.data
-        );
+        console.log("Response from UpdateFiles tool", response.data);
         console.log("=======================");
 
         return JSON.stringify(response.data.results);
     },
     {
         name: "update_files",
-
         description:
             "Update the contents of specified files. This can also create new files by providing a new file name in the file field and the content to be added in the content field.",
-
         schema: z.object({
             files: z
                 .array(
@@ -123,7 +91,6 @@ export const updateFiles = tool(
                             .describe(
                                 "The absolute path of the file to update"
                             ),
-
                         content: z
                             .string()
                             .describe(

@@ -79,14 +79,14 @@ app.get('/read-files', async (req, res) => {
         try {
             const content = await fs.promises.readFile(filePath, 'utf-8');
             return {
-                [filePath.replace(WORKING_DIR,'')]: content,
+                [filePath.replace(WORKING_DIR, '')]: content,
             }
             // res.write(`Content of ${file}:\n${content}\n\n`);
 
         } catch (err) {
 
             return {
-                [filePath.replace(WORKING_DIR,'')]: `Error reading file:${err.message}`,
+                [filePath.replace(WORKING_DIR, '')]: `Error reading file:${err.message}`,
             }
 
             // res.write(`Error reading ${file}:${err.message}\n\n`);
@@ -158,14 +158,17 @@ app.post('/create-files', async (req, res) => {
     const results = await Promise.all(files.map(async (fileObj) => {
         const { file, content } = fileObj;
         const filePath = path.join(WORKING_DIR, file);
-
         try {
             await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+
             await fs.promises.writeFile(filePath, content, 'utf-8');
+
             return {
-                [filePath]: 'File created successfully',
+                [filePath]: "File updated successfully",
             }
-        } catch (err) {
+        }
+
+        catch (err) {
             return {
                 [filePath]: `Error creating file:${err.message}`,
             }

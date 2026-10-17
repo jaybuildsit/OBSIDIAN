@@ -20,17 +20,21 @@ const agent = createAgent({
         readFiles,
         updateFiles
     ],
+    
 });
 
-console.log("🚀 Starting agent...");
+// console.log("🚀 Starting agent...");
 
-const result = await agent.invoke({
-    messages: [
-        {
-            role: "user",
-            content: "Change only the counter button text from 'Count is {count}' to 'Touch: {count}'. Do not change anything else in the project."
-        }
-    ]
-});
+// const result = await agent.invoke({
+//     messages: [
+//         {
+//             role: "user",
+//             content: "Change only the counter button text from 'Count is {count}' to 'Touch: {count}'. Do not change anything else in the project."
+//         }
+//     ]
+// });
 
-console.log("✅ Agent finished");
+// console.log("✅ Agent finished");
+
+
+export default agent;
