@@ -31,11 +31,11 @@ spec:
               memory: "256Mi"
 
           env:
-            - name:  OPENROUTER_API_KEY
+            - name:  NVIDIA_API_KEY
               valueFrom:
                 secretKeyRef:
                   name:  app-secret
-                  key:  OPENROUTER_API_KEY
+                  key:  NVIDIA_API_KEY
 
           livenessProbe:
             httpGet:

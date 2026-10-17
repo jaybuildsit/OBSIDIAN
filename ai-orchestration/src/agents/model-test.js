@@ -1,14 +1,25 @@
-import "dotenv/config";
-import { ChatOpenRouter } from "@langchain/openrouter";
+import OpenAI from "openai";
+import dotenv from "dotenv";
 
-const model = new ChatOpenRouter({
-    model: "nvidia/nemotron-3.5-super-vl:free",
-    apiKey: process.env.OPENROUTER_API_KEY,
-    temperature: 0.7,
+dotenv.config({ path: "./.env" });
+
+console.log("NVIDIA key loaded:", !!process.env.NVIDIA_API_KEY);
+
+const client = new OpenAI({
+    baseURL: "https://integrate.api.nvidia.com/v1",
+    apiKey: process.env.NVIDIA_API_KEY,
 });
 
-const response = await model.invoke(
-    "Reply with exactly: OBSIDIAN MODEL WORKING"
-);
+const response = await client.chat.completions.create({
+    model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+    messages: [
+        {
+            role: "user",
+            content: "Explain Kubernetes in exactly 3 concise bullet points.",
+        },
+    ],
+    max_tokens: 300,
+});
 
-console.log(response.content);
+console.log("\n===== NVIDIA RESPONSE =====\n");
+console.log(response.choices[0].message.content);
