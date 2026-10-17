@@ -5,8 +5,10 @@ metadata:
   name: Obsidian
 
 build:
+  tagPolicy:
+    sha256: {}
   artifacts:
-    - image: ai-orchestration 
+    - image: ai-orchestration
       context: ai-orchestration
       docker:
         dockerfile: dockerfile
@@ -18,7 +20,6 @@ build:
       context: sandbox/agent
       docker:
         dockerfile: dockerfile
-
 
     - image: router
       context: sandbox/router
@@ -34,7 +35,6 @@ build:
       context: sandbox/templates
       docker:
         dockerfile: dockerfile
-
 
 manifests:
   rawYaml:
