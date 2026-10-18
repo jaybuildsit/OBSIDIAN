@@ -1,8 +1,15 @@
-FROM node:24-alpine
+FROM node:24-bullseye
+
+
+# Install build dependencies required for native modules like node-pty
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 
 WORKDIR /app
-
 
 
 COPY package*.json ./

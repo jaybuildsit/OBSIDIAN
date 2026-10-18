@@ -1,5 +1,6 @@
 import express from "express";
 import morgan from "morgan";
+import http from "http";
 import { createProxyMiddleware } from "http-proxy-middleware";
 
 const app = express();
@@ -44,18 +45,44 @@ function getAgentProxy(sandboxId) {
     return agentProxies[sandboxId];
 }
 
-app.use((req, res, next) => {
-    const host = req.headers.host;
+// Shared host -> proxy lookup, used by both HTTP requests and WebSocket upgrades
+function resolveProxy(hostHeader = "") {
+    const host = hostHeader.split(':')[0];
     const sandboxId = host.split('.')[0];
+    const type = host.split('.')[1];
 
-    if (host.split('.')[1] === 'agent') {
+    if (type === 'agent') return getAgentProxy(sandboxId);
+    if (type === 'preview') return getProxy(sandboxId);
+    return null;
+}
 
-        return getAgentProxy(sandboxId)(req, res, next);
+app.use((req, res, next) => {
+    const proxy = resolveProxy(req.headers.host);
 
-    } else if (host.split('.')[1] === 'preview') {
-
-        return getProxy(sandboxId)(req, res, next);
+    if (!proxy) {
+        return res.status(404).send("Unknown host");
     }
+
+    return proxy(req, res, next);
 });
 
-export default app;
+// Create the HTTP server explicitly so we can handle WebSocket upgrades.
+// Upgrade requests never go through Express middleware.
+const server = http.createServer(app);
+
+server.on('upgrade', (req, socket, head) => {
+    // Prevent EPIPE / connection-reset errors from crashing the process
+    socket.on('error', () => socket.destroy());
+
+    const proxy = resolveProxy(req.headers.host);
+
+    if (!proxy) {
+        socket.destroy();
+        return;
+    }
+
+    console.log(`WS upgrade request: ${req.headers.host} ${req.url}`);
+    proxy.upgrade(req, socket, head);
+});
+
+export default server; // export server, not app
