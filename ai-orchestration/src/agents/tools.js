@@ -3,7 +3,7 @@ import { tool } from "langchain";
 import * as z from "zod";
 
 export const listFiles = tool(
-    async ({}, config) => {
+    async ({ }, config) => {
 
         const writer = config.writer;
 
@@ -23,7 +23,7 @@ export const listFiles = tool(
             `${SANDBOX_URL}/list-files`
         );
 
-        writer("Files Listed Successfully!!")
+        writer("Files Listed Successfully.." + "Files:" + response.data.files.join(",") + "\n")
 
         return JSON.stringify(response.data.files);
     },
@@ -39,7 +39,7 @@ export const readFiles = tool(
     async ({ files = [] }, config) => {
 
         const writer = config.writer;
-        writer("Reading Files...\n")
+        writer("Reading Files...\n" + files.join(",") + "\n")
 
         const SANDBOX_URL =
             `http://sandbox-service-${config.context.projectId}:3000`;
@@ -86,7 +86,7 @@ export const updateFiles = tool(
 
         console.log("=================================");
 
-        writer("Updating files...\n");
+        writer("Updating files..." + files.map(f => f.file).join(",") + "\n");
 
         const SANDBOX_URL =
             `http://sandbox-service-${config.context.projectId}:3000`;
