@@ -16,6 +16,7 @@ spec:
     spec:
       containers:
         - image: auth
+          imagePullPolicy: IfNotPresent
           name: auth-container
           resources:
             requests:
@@ -37,8 +38,30 @@ spec:
             initialDelaySeconds: 30
             timeoutSeconds: 10
           env:
-            - name: ENVVARNAME
-              value: ENVVARVALUE
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: MONGO_URI
+
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: google-auth
+                  key: GOOGLE_CLIENT_ID
+
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: google-auth
+                  key: GOOGLE_CLIENT_SECRET
+
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: JWT_SECRET
+
           ports:
             - containerPort: 3000
               name: auth-http

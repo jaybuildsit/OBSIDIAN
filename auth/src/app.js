@@ -19,22 +19,17 @@ passport.use(new GoogleStrategy({
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: "/api/auth/google/callback"
 }, (accessToken, refreshToken, profile, done) => {
-    // Here you would typically find or create a user in your database
-    // For this example, we'll just return the profile
     return done(null, profile);
-
 }));
 
-app.get('/_statuz/healthz',(req,res)=>{
-    res.status(200).json({status:'ok'});
+app.get('/_status/healthz', (req, res) => {
+    res.status(200).json({ status: 'ok' });
 });
 
-app.get('/_statuz/readyz',(req,res)=>{
-    res.status(200).json({status:'readyz'});
+app.get('/_status/readyz', (req, res) => {
+    res.status(200).json({ status: 'ready' });
 });
 
-
-
-app.use('/api/auth',authRoutes)
+app.use('/api/auth', authRoutes);
 
 export default app;
