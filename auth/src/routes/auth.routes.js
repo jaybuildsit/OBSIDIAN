@@ -46,7 +46,7 @@ router.get('/google/callback', passport.authenticate('google', {
             domain: '.cryboy.in',     // works across all *.cryboy.in subdomains
             maxAge: 7 * 24 * 60 * 60 * 1000  // 7 days
         });
-        res.redirect('https://www.cryboy.in'); // Redirect to your frontend after successful login
+        res.redirect('/'); // Redirect to your frontend after successful login
     } catch (err) {
         console.error('Error during Google authentication:', err);
         res.redirect('/'); // Redirect to your frontend on error
