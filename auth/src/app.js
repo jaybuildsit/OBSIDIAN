@@ -6,7 +6,7 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import cookies from "cookie-parser";
 
-
+import authRoutes from './routes/auth.routes.js'
 
 const app = express();
 
@@ -24,5 +24,17 @@ passport.use(new GoogleStrategy({
     return done(null, profile);
 
 }));
+
+app.get('/_statuz/healthz',(req,res)=>{
+    res.status(200).json({status:'ok'});
+});
+
+app.get('/_statuz/readyz',(req,res)=>{
+    res.status(200).json({status:'readyz'});
+});
+
+
+
+app.use('/api/auth',authRoutes)
 
 export default app;

@@ -1,7 +1,0 @@
-jprakashlucky05_db_user
-AJmpxeRa2OJp9he9
-
-MONGO_URI=mongodb+srv://jprakashlucky05_db_user:AJmpxeRa2OJp9he9@cluster0.7sblrtj.mongodb.net/ai
-
-38.134.138.175/32
-(includes your current IP address)
