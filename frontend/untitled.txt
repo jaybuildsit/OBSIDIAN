@@ -1,0 +1,92 @@
+POST http://localhost/api/sandbox/create/
+
+this api will create an sandbox and return data like this.
+{
+    "message": "Sandbox created successfully",
+    "sandboxId": "01a1504e-7a95-702d-8df0-120e14ce681d",
+    "previewUrl": "http://01a1504e-7a95-702d-8df0-120e14ce681d.preview.localhost" // create a iframe using this [preview url]
+}
+
+
+
+
+GET http://01a1504e-7a95-702d-8df0-120e14ce681d.agent.localhost/list-files
+
+{
+  "message": "Elements in working directory",
+  "elements": [
+    "README.md",
+    "dockerfile",
+    "eslint.config.js",
+    "index.html",
+    "node_modules",
+    "package-lock.json",
+    "package.json",
+    "public",
+    "src",
+    "vite.config.js"
+  ],
+  "status": "success"
+}
+
+
+
+GET http://01a1504e-7a95-702d-8df0-120e14ce681d.agent.localhost/read-files?files=src/App.css
+
+{
+  "message": "Files read successfully",
+  "files": {
+    "src/App.css": "/* App.css */\n\n.app {\n  min-height: 100vh;\n  background: #0a0a0a;\n  color: #f5f5f5;\n  font-family: Inter, system-ui, sans-serif;\n}\n\n.navbar {\n  height: 64px;\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 0 24px;\n  border-bottom: 1px solid #222;\n}\n\n.logo {\n  font-size: 20px;\n  font-weight: 700;\n}\n"
+  }
+}
+
+
+PATCH http://01a1504e-7a95-702d-8df0-120e14ce681d.agent.localhost/update-files
+
+{
+  "updates": [
+    {
+      "file": "src/App.css",
+      "content": "/* App.css */\n\n.app {\n  min-height: 100vh;\n  background: #0a0a0a;\n  color: #f5f5f5;\n  font-family: Inter, system-ui, sans-serif;\n}\n"
+    }
+  ]
+}
+
+
+POST http://localhost/api/ai/invoke
+
+req.body={
+    "message":"make the snake board into  navy blue colour ",
+    "projectId":"01a1504e-7a95-702d-8df0-120e14ce681d."
+}
+
+response will be in SSE
+
+Connection closed
+12:23:15.189
+Updated files successfully!!
+12:23:15.188
+(empty)
+12:23:15.188
+Updating files.../src/SnakeGame.css
+12:23:15.188
+Files read Successfully
+12:23:15.187
+(empty)
+12:23:15.187
+Reading Files...
+12:23:15.187
+(empty)
+12:23:15.187
+Files Listed Successfully..Files:README.md,dockerfile,eslint.config.js,index.html,package-lock.json,package.json,public/favicon.svg,public/icons.svg,src/App.css,src/App.jsx,src/SnakeGame.css,src/Snake
+12:23:15.186
+Connected to http://localhost/api/ai/invoke
+
+
+
+We have a socket.io previewUrl 01a1504e-7a95-702d-8df0-120e14ce681d.agent.localhost //use xtern js for terminal on the frontend
+
+with event name "terminal input" to send the terminal input to the sandbox.
+
+
+
