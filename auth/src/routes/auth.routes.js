@@ -3,6 +3,7 @@ import { Router } from "express";
 import User from "../models/user.model.js"
 import passport from "passport"
 import jwt from "jsonwebtoken";
+import { sendAuthNotification } from "../config/mq.js"
 
 
 const router = Router();
@@ -50,7 +51,7 @@ router.get('/google/callback', passport.authenticate('google', {
         res.redirect('/'); // Redirect to your frontend after successful login
     } catch (err) {
         console.error('Error during Google authentication:', err);
-        res.redirect('/'); 
+        res.redirect('/');
     }
 });
 

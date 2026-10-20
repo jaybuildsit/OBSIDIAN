@@ -11,6 +11,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "amqplib": "^2.2.0",
     "dotenv": "^18.0.8",
     "express": "^5.3.0",
     "morgan": "^1.12.1",
