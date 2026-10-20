@@ -3,10 +3,12 @@ import morgan from "morgan";
 import http from "http";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { createProxyServer } from "httpxy";
+import { refreshTTL } from "./config/redis.js";
 
 const app = express();
 
 app.use(morgan("combined"));
+
 
 app.get("/api/status/healthz", (req, res) => {
     res.status(200).json({
@@ -15,6 +17,7 @@ app.get("/api/status/healthz", (req, res) => {
     });
 });
 
+
 app.get("/api/status/readyz", (req, res) => {
     res.status(200).json({
         message: "Server is ready",
@@ -22,10 +25,14 @@ app.get("/api/status/readyz", (req, res) => {
     });
 });
 
+
+
 const proxies = {};
 const agentProxies = {};
 
-// WebSocket proxy
+
+
+
 const wsProxy = createProxyServer({
     changeOrigin: true,
 });
@@ -33,6 +40,8 @@ const wsProxy = createProxyServer({
 wsProxy.on("error", (err, req, socket) => {
     socket?.destroy();
 });
+
+
 
 function getProxy(sandboxId) {
     const target = `http://sandbox-service-${sandboxId}`;
@@ -47,6 +56,8 @@ function getProxy(sandboxId) {
     return proxies[sandboxId];
 }
 
+
+
 function getAgentProxy(sandboxId) {
     const target = `http://sandbox-service-${sandboxId}:3000`;
 
@@ -60,43 +71,99 @@ function getAgentProxy(sandboxId) {
     return agentProxies[sandboxId];
 }
 
-// Shared host -> proxy lookup
+
+
 function resolveProxy(hostHeader = "") {
     const host = hostHeader.split(":")[0];
+
     const sandboxId = host.split(".")[0];
     const type = host.split(".")[1];
 
-    if (type === "agent") return getAgentProxy(sandboxId);
-    if (type === "preview") return getProxy(sandboxId);
+    if (type === "agent") {
+        return getAgentProxy(sandboxId);
+    }
+
+    if (type === "preview") {
+        return getProxy(sandboxId);
+    }
 
     return null;
 }
 
-// HTTP requests
-app.use((req, res, next) => {
+
+
+
+app.use(async (req, res, next) => {
+
     const proxy = resolveProxy(req.headers.host);
 
     if (!proxy) {
         return res.status(404).send("Unknown host");
     }
 
+    const host = req.headers.host?.split(":")[0];
+
+    const sandboxId = host?.split(".")[0];
+
+    try {
+
+        await refreshTTL(sandboxId);
+
+        console.log(`♻️ TTL refreshed for sandbox: ${sandboxId}`);
+
+    } catch (error) {
+
+        console.error(
+            `❌ Failed to refresh TTL for sandbox ${sandboxId}:`,
+            error
+        );
+
+    }
+
     return proxy(req, res, next);
 });
 
-// HTTP server
+
+
 const server = http.createServer(app);
 
-// WebSocket upgrades
-server.on("upgrade", (req, socket, head) => {
+
+
+server.on("upgrade", async (req, socket, head) => {
+
     socket.on("error", () => socket.destroy());
 
     const host = req.headers.host?.split(":")[0];
+
     const sandboxId = host?.split(".")[0];
+
     const type = host?.split(".")[1];
 
-    console.log(`WS upgrade request: ${req.headers.host} ${req.url}`);
+    console.log(
+        `WS upgrade request: ${req.headers.host} ${req.url}`
+    );
+
+
+
+    try {
+
+        await refreshTTL(sandboxId);
+
+        console.log(
+            `♻️ TTL refreshed for WebSocket sandbox: ${sandboxId}`
+        );
+
+    } catch (error) {
+
+        console.error(
+            `❌ Failed to refresh WebSocket TTL for sandbox ${sandboxId}:`,
+            error
+        );
+
+    }
 
     if (type === "agent") {
+
         wsProxy.ws(
             req,
             socket,
@@ -105,7 +172,12 @@ server.on("upgrade", (req, socket, head) => {
             },
             head
         );
-    } else if (type === "preview") {
+
+    }
+
+
+    else if (type === "preview") {
+
         wsProxy.ws(
             req,
             socket,
@@ -114,9 +186,15 @@ server.on("upgrade", (req, socket, head) => {
             },
             head
         );
-    } else {
+
+    }
+
+    else {
+
         socket.destroy();
+
     }
 });
+
 
 export default server;
