@@ -13,13 +13,21 @@ spec:
     metadata:
       labels:
         app: sandbox
-
     spec:
       serviceAccountName: resource-manager
       containers:
-        - image: sandbox:v25
+        - name: main-sandbox-container
+          image: sandbox
           imagePullPolicy: IfNotPresent
-          name: main-sandbox-container
+          ports:
+            - containerPort: 3000
+              name: main-sandbox
+          env:
+            - name: REDIS_URI
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: REDIS_URI
           resources:
             limits:
               cpu: "500m"
@@ -39,7 +47,3 @@ spec:
               port: 3000
             initialDelaySeconds: 30
             timeoutSeconds: 10
-
-          ports:
-            - containerPort: 3000
-              name: main-sandbox
