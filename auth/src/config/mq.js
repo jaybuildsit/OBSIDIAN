@@ -1,4 +1,6 @@
 import amqplib from "amqplib";
+
+
 const QUEUE = 'auth_notification_queue';
 
 const connection = await amqplib.connect(process.env.RABBITMQ_URL)
