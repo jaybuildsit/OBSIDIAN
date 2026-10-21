@@ -5,25 +5,26 @@ import * as z from "zod";
 export const listFiles = tool(
     async ({ }, config) => {
 
-        const writer = config.writer;
+        const writer = config.context.writer;
 
-        ("Listing files in project directory...\n")
-
-        // console.log("TOOL CONFIG:", config);
+        writer("Listing files in project directory...\n");
 
         const SANDBOX_URL =
-            `http://sandbox-service-${config.context.projectId}:3000`;
+            `http://sandbox-service-${config.context.sandboxId}:3000`;
 
-        // console.log("PROJECT ID:", config.context.projectId);
-        // console.log("SANDBOX URL:", SANDBOX_URL);
-
-
+        console.log("SANDBOX ID:", config.context.sandboxId);
+        console.log("SANDBOX URL:", SANDBOX_URL);
 
         const response = await axios.get(
             `${SANDBOX_URL}/list-files`
         );
 
-        writer("Files Listed Successfully.." + "Files:" + response.data.files.join(",") + "\n")
+        writer(
+            "Files Listed Successfully..\n" +
+            "Files: " +
+            response.data.files.join(",") +
+            "\n"
+        );
 
         return JSON.stringify(response.data.files);
     },
@@ -35,23 +36,29 @@ export const listFiles = tool(
     }
 );
 
+
 export const readFiles = tool(
     async ({ files = [] }, config) => {
 
-        const writer = config.writer;
-        writer("Reading Files...\n" + files.join(",") + "\n")
+        const writer = config.context.writer;
+
+        writer(
+            "Reading Files...\n" +
+            files.join(",") +
+            "\n"
+        );
 
         const SANDBOX_URL =
-            `http://sandbox-service-${config.context.projectId}:3000`;
+            `http://sandbox-service-${config.context.sandboxId}:3000`;
 
-        // console.log("PROJECT ID:", config.context.projectId);
-        // console.log("SANDBOX URL:", SANDBOX_URL);
+        console.log("SANDBOX ID:", config.context.sandboxId);
+        console.log("SANDBOX URL:", SANDBOX_URL);
 
         const response = await axios.get(
             `${SANDBOX_URL}/read-files?files=${files.join(",")}`
         );
 
-        writer("Files read Successfully")
+        writer("Files read Successfully");
 
         return JSON.stringify(response.data);
     },
@@ -62,18 +69,23 @@ export const readFiles = tool(
         schema: z.object({
             files: z
                 .array(z.string())
-                .describe("The list of absolute file paths to read.")
+                .describe(
+                    "The list of absolute file paths to read."
+                )
         })
     }
 );
 
+
 export const updateFiles = tool(
     async ({ files }, config) => {
-        const writer = config.writer;
+
+        const writer = config.context.writer;
 
         console.log("=================================");
         console.log("UPDATE FILES TOOL CALLED");
         console.log("PROJECT ID:", config.context.projectId);
+        console.log("SANDBOX ID:", config.context.sandboxId);
         console.log("NUMBER OF FILES:", files?.length);
 
         for (const update of files) {
@@ -86,12 +98,19 @@ export const updateFiles = tool(
 
         console.log("=================================");
 
-        writer("Updating files..." + files.map(f => f.file).join(",") + "\n");
+        writer(
+            "Updating files..." +
+            files.map(f => f.file).join(",") +
+            "\n"
+        );
 
         const SANDBOX_URL =
-            `http://sandbox-service-${config.context.projectId}:3000`;
+            `http://sandbox-service-${config.context.sandboxId}:3000`;
+
+        console.log("SANDBOX URL:", SANDBOX_URL);
 
         try {
+
             const response = await axios.patch(
                 `${SANDBOX_URL}/update-files`,
                 {
@@ -107,20 +126,42 @@ export const updateFiles = tool(
 
             writer("Updated files successfully!!");
 
-            return JSON.stringify(response.data.results);
+            return JSON.stringify(
+                response.data.results
+            );
 
         } catch (error) {
+
             console.error("=================================");
             console.error("UPDATE FILES FAILED");
 
             if (error.response) {
-                console.error("STATUS:", error.response.status);
-                console.error("DATA:", error.response.data);
+                console.error(
+                    "STATUS:",
+                    error.response.status
+                );
+
+                console.error(
+                    "DATA:",
+                    error.response.data
+                );
+
             } else if (error.request) {
-                console.error("NO RESPONSE FROM SANDBOX");
-                console.error("REQUEST WAS SENT");
+
+                console.error(
+                    "NO RESPONSE FROM SANDBOX"
+                );
+
+                console.error(
+                    "REQUEST WAS SENT"
+                );
+
             } else {
-                console.error("ERROR:", error.message);
+
+                console.error(
+                    "ERROR:",
+                    error.message
+                );
             }
 
             console.error("=================================");
@@ -136,7 +177,7 @@ export const updateFiles = tool(
         name: "update_files",
 
         description:
-            "Update the contents of specified files. This can also create new files by providing a new file name in the file field and the content to be added in the content field.",
+            "Update the contents of specified files. This can also create new files by providing a new file name in the file field and the content to be added in the file field.",
 
         schema: z.object({
             files: z

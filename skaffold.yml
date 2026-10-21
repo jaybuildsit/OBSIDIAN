@@ -74,3 +74,15 @@ manifests:
     - k8s/rbac-binding.yml
     - k8s/notification-deployment.yml
     - k8s/notification-service.yml
+
+deploy:
+  logs:
+    prefix: container
+  kubectl:
+    hooks:
+      before:
+        - host:
+            command: ["node", "scripts/set-agent-image.js", "before"]
+      after:
+        - host:
+            command: ["node", "scripts/set-agent-image.js", "after"]

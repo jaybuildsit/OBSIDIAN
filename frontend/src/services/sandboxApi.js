@@ -8,6 +8,14 @@ const apiJson = async (response) => {
   }
 };
 
+const requireProjectId = (projectId) => {
+  if (typeof projectId !== "string" || !projectId.trim()) {
+    throw new Error("Project ID is missing.");
+  }
+
+  return projectId.trim();
+};
+
 const requireSandboxId = (sandboxId) => {
   if (typeof sandboxId !== "string" || !sandboxId.trim()) {
     throw new Error("Sandbox ID is missing.");
@@ -53,9 +61,51 @@ export const waitForAgent = async (
   throw new Error("Sandbox agent did not become ready in time.");
 };
 
-export const createSandbox = async () => {
-  const response = await fetch("/api/sandbox/create/", {
+export const listProjects = async () => {
+  const response = await fetch("/api/sandbox/project", {
+    credentials: "include",
+  });
+  const payload = await apiJson(response);
+
+  if (!response.ok || !Array.isArray(payload.projects)) {
+    throw new Error(payload.message || "Unable to load your projects.");
+  }
+
+  return payload.projects;
+};
+
+export const createProject = async (title) => {
+  const projectTitle = typeof title === "string" ? title.trim() : "";
+
+  if (!projectTitle) {
+    throw new Error("Enter a project name.");
+  }
+
+  const response = await fetch("/api/sandbox/project", {
     method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ title: projectTitle }),
+  });
+  const payload = await apiJson(response);
+
+  if (!response.ok || !payload.project?._id) {
+    throw new Error(payload.message || "Unable to create your project.");
+  }
+
+  return payload.project;
+};
+
+export const createSandbox = async (projectId) => {
+  const response = await fetch("/api/sandbox/create", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ projectId: requireProjectId(projectId) }),
   });
 
   const payload = await apiJson(response);

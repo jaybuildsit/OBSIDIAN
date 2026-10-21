@@ -1,6 +1,11 @@
 import { k8sCoreV1Api } from "./config.js"
 
 export async function createPod(sandboxId, projectId) {
+    const agentImage = process.env.AGENT_IMAGE;
+
+    if (!agentImage) {
+        throw new Error("AGENT_IMAGE is not configured. Start the services with Skaffold.");
+    }
 
     const podManifest = {
         metadata: {
@@ -63,7 +68,7 @@ export async function createPod(sandboxId, projectId) {
                 },
 
                 {
-                    image: "agent",
+                    image: agentImage,
                     imagePullPolicy: "IfNotPresent",
                     name: "agent-container",
                     ports: [

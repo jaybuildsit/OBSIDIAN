@@ -32,3 +32,19 @@
 .dock-resizer:hover:after,.app-shell.dragging .dock-resizer:after{background:#c77956}
 .app-shell.dragging{user-select:none;cursor:row-resize}
 .app-shell.dragging .bottom-dock{transition:none}
+.project-form{display:flex;justify-content:center;gap:8px;margin:0 auto;width:min(440px,90%)}
+.project-form input{min-width:0;flex:1;padding:11px 12px;border:1px solid #ded6ca;border-radius:8px;background:#fffaf4;color:#352923;font-size:12px;outline:none}
+.project-form input:focus{border-color:#a56246;box-shadow:0 0 0 2px #a5624620}
+.project-form input:disabled{opacity:.65}
+.project-form .primary-button{white-space:nowrap}
+.primary-button:disabled,.launch-button:disabled,.project-dashboard-heading button:disabled{cursor:wait;opacity:.65}
+.project-dashboard{width:min(440px,90%);max-height:235px;margin:22px auto 0;text-align:left}
+.project-dashboard-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;color:#94897e;font:10px 'DM Mono',monospace;letter-spacing:.08em}
+.project-list{max-height:194px;overflow:auto;border:1px solid #e3dbd0;border-radius:8px;background:#fbf8f3}
+.project-card{display:flex;align-items:center;gap:12px;min-height:46px;padding:7px 9px 7px 12px}
+.project-card+.project-card{border-top:1px solid #ece5dc}
+.project-card-title{min-width:0;flex:1;overflow:hidden;color:#51463d;font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.launch-button{display:flex;align-items:center;justify-content:center;gap:5px;min-width:72px;padding:6px 9px;border:1px solid #d9c9b9;border-radius:6px;background:#f5eee6;color:#77523e;font-size:10px;font-weight:600}
+.launch-button:hover:not(:disabled){background:#eee2d5}
+.project-feedback{display:flex;align-items:center;justify-content:center;gap:7px;min-height:54px;padding:12px;border:1px dashed #ded6ca;border-radius:8px;color:#8f857a;font-size:11px}
+@media(max-width:760px){.project-form{flex-direction:column}.project-form .primary-button{align-self:center}.project-dashboard{max-height:190px}.project-list{max-height:150px}}

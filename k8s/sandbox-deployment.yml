@@ -56,6 +56,12 @@ spec:
                   name: database
                   key: SANDBOX
 
+            - name: AGENT_IMAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: sandbox-agent-image
+                  key: AGENT_IMAGE
+
           livenessProbe:
             httpGet:
               path: /api/sandbox/health

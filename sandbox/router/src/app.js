@@ -7,6 +7,26 @@ import { refreshTTL } from "./config/redis.js";
 
 const app = express();
 
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+
+    if (origin === "http://localhost:5173") {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.vary("Origin");
+
+        if (req.method === "OPTIONS") {
+            res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+            res.setHeader(
+                "Access-Control-Allow-Headers",
+                req.headers["access-control-request-headers"] || "Content-Type",
+            );
+            return res.sendStatus(204);
+        }
+    }
+
+    next();
+});
+
 app.use(morgan("combined"));
 
 
