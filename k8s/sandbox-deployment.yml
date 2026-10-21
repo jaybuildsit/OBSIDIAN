@@ -4,30 +4,31 @@ metadata:
   name: sandbox-deployment
   labels:
     name: sandbox-deployment
+
 spec:
   replicas: 1
+
   selector:
     matchLabels:
       app: sandbox
+
   template:
     metadata:
       labels:
         app: sandbox
+
     spec:
       serviceAccountName: resource-manager
+
       containers:
         - name: main-sandbox-container
           image: sandbox
           imagePullPolicy: IfNotPresent
+
           ports:
             - containerPort: 3000
               name: main-sandbox
-          env:
-            - name: REDIS_URI
-              valueFrom:
-                secretKeyRef:
-                  name: database
-                  key: REDIS_URI
+
           resources:
             limits:
               cpu: "500m"
@@ -35,12 +36,33 @@ spec:
             requests:
               cpu: "250m"
               memory: "200Mi"
+
+          env:
+            - name: REDIS_URI
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: REDIS_URI
+
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: JWT_SECRET
+
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: database
+                  key: SANDBOX
+
           livenessProbe:
             httpGet:
               path: /api/sandbox/health
               port: 3000
             initialDelaySeconds: 90
             timeoutSeconds: 10
+
           readinessProbe:
             httpGet:
               path: /api/sandbox/health

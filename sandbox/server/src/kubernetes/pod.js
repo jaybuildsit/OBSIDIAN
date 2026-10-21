@@ -1,6 +1,6 @@
 import { k8sCoreV1Api } from "./config.js"
 
-export async function createPod(sandboxId) {
+export async function createPod(sandboxId, projectId) {
 
     const podManifest = {
         metadata: {
@@ -68,6 +68,40 @@ export async function createPod(sandboxId) {
                         requests: {
                             cpu: "250m",
                             memory: "500Mi"
+                        }
+                    },
+                    volumeMounts: [
+                        {
+                            name: "workspace-volume",
+                            mountPath: "/workspace"
+                        }
+                    ]
+                },
+                {
+                    image: "sync-agent",
+                    imagePullPolicy: "IfNotPresent",
+                    name: "sync-agent-container",
+                    env: [
+                        {
+                            name: "PROJECT_ID",
+                            value: projectId
+                        }
+                    ],
+                    envFrom: [
+                        {
+                            secretRef: {
+                                name: "aws"
+                            }
+                        }
+                    ],
+                    resources: {
+                        limits: {
+                            cpu: "250m",
+                            memory: "256Mi"
+                        },
+                        requests: {
+                            cpu: "100m",
+                            memory: "128Mi"
                         }
                     },
                     volumeMounts: [

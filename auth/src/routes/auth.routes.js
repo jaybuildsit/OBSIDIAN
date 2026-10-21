@@ -7,10 +7,6 @@ import { sendAuthNotification } from "../config/mq.js";
 const router = Router();
 
 
-// ================================
-// GOOGLE LOGIN
-// ================================
-
 router.get(
     "/google",
     passport.authenticate("google", {
@@ -21,9 +17,6 @@ router.get(
 );
 
 
-// ================================
-// GOOGLE CALLBACK
-// ================================
 
 router.get(
     "/google/callback",
@@ -45,10 +38,6 @@ router.get(
             });
 
 
-            // ================================
-            // CREATE USER IF FIRST LOGIN
-            // ================================
-
             if (!user) {
                 user = new User({
                     googleId: id,
@@ -61,21 +50,12 @@ router.get(
             }
 
 
-            // ================================
-            // SEND AUTH NOTIFICATION
-            // ================================
-
             await sendAuthNotification({
                 userId: user._id,
                 action: "google_login",
                 timestamp: new Date(),
                 email: emails[0].value,
             });
-
-
-            // ================================
-            // GENERATE JWT
-            // ================================
 
             const token = jwt.sign(
                 {
@@ -88,20 +68,12 @@ router.get(
             );
 
 
-            // ================================
-            // SET COOKIE
-            // ================================
-
             res.cookie("token", token, {
                 httpOnly: true,
             });
 
 
-            // ================================
-            // REDIRECT
-            // ================================
-
-            res.redirect("/");
+            res.redirect("http://localhost:5173");
 
         } catch (err) {
             console.error(
