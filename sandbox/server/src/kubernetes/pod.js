@@ -17,6 +17,7 @@ export async function createPod(sandboxId, projectId) {
                     emptyDir: {}
                 }
             ],
+
             initContainers: [
                 {
                     name: "init-container",
@@ -36,8 +37,13 @@ export async function createPod(sandboxId, projectId) {
                 {
                     image: "template",
                     imagePullPolicy: "IfNotPresent",
-                    name: 'sandbox-container',
-                    ports: [{ containerPort: 5173, name: "http" }],
+                    name: "sandbox-container",
+                    ports: [
+                        {
+                            containerPort: 5173,
+                            name: "http"
+                        }
+                    ],
                     resources: {
                         limits: {
                             cpu: "500m",
@@ -55,11 +61,17 @@ export async function createPod(sandboxId, projectId) {
                         }
                     ]
                 },
+
                 {
                     image: "agent",
                     imagePullPolicy: "IfNotPresent",
-                    name: 'agent-container',
-                    ports: [{ containerPort: 3000, name: "http" }],
+                    name: "agent-container",
+                    ports: [
+                        {
+                            containerPort: 3000,
+                            name: "http"
+                        }
+                    ],
                     resources: {
                         limits: {
                             cpu: "500m",
@@ -77,37 +89,68 @@ export async function createPod(sandboxId, projectId) {
                         }
                     ]
                 },
+
                 {
                     image: "sync-agent",
                     imagePullPolicy: "IfNotPresent",
                     name: "sync-agent-container",
-                    env: [
+
+                    ports: [
                         {
-                            name: "PROJECT_ID",
-                            value: projectId
+                            containerPort: 4000,
+                            name: "http"
                         }
                     ],
-                    envFrom: [
-                        {
-                            secretRef: {
-                                name: "aws"
-                            }
-                        }
-                    ],
+
                     resources: {
                         limits: {
-                            cpu: "250m",
-                            memory: "256Mi"
+                            cpu: "500m",
+                            memory: "1Gi"
                         },
                         requests: {
-                            cpu: "100m",
-                            memory: "128Mi"
+                            cpu: "250m",
+                            memory: "500Mi"
                         }
                     },
+
                     volumeMounts: [
                         {
                             name: "workspace-volume",
                             mountPath: "/workspace"
+                        }
+                    ],
+
+                    env: [
+                        {
+                            name: "PROJECT_ID",
+                            value: projectId
+                        },
+                        {
+                            name: "AWS_ACCESS_KEY_ID",
+                            valueFrom: {
+                                secretKeyRef: {
+                                    name: "aws",
+                                    key: "AWS_ACCESS_KEY_ID"
+                                }
+                            }
+                        },
+                        {
+                            name: "AWS_SECRET_ACCESS_KEY",
+                            valueFrom: {
+                                secretKeyRef: {
+                                    name: "aws",
+                                    key: "AWS_SECRET_ACCESS_KEY"
+                                }
+                            }
+                        },
+                        {
+                            name: "AWS_REGION",
+                            valueFrom: {
+                                secretKeyRef: {
+                                    name: "aws",
+                                    key: "AWS_REGION"
+                                }
+                            }
                         }
                     ]
                 }
@@ -116,22 +159,21 @@ export async function createPod(sandboxId, projectId) {
     }
 
     const response = await k8sCoreV1Api.createNamespacedPod({
-        namespace: 'default',
+        namespace: "default",
         body: podManifest
     })
 
-    return response;
-
+    return response
 }
 
 export async function deletePod(sandboxId) {
+
     const response = await k8sCoreV1Api.deleteNamespacedPod({
-        namespace: 'default',
+        namespace: "default",
         name: `sandbox-pod-${sandboxId}`
     }, {
         gracePeriodSeconds: 0,
     })
 
-    return response;
-
+    return response
 }

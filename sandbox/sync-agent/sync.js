@@ -88,7 +88,7 @@ function enqueueOperation(key, operation) {
         pendingOperations.get(key) || Promise.resolve()
 
     const currentOperation = previousOperation
-        .catch(() => {})
+        .catch(() => { })
         .then(operation)
 
     pendingOperations.set(key, currentOperation)
@@ -115,24 +115,34 @@ async function uploadFile(filePath) {
     const key = getObjectKey(filePath)
 
     enqueueOperation(key, async () => {
-        const fileStats = await stat(filePath)
+        try {
+            const fileStats = await stat(filePath)
 
-        if (!fileStats.isFile()) {
-            return
+            if (!fileStats.isFile()) {
+                return
+            }
+
+            console.log(`⬆️ Syncing: ${filePath}`)
+
+            await s3Client.send(
+                new PutObjectCommand({
+                    Bucket: bucketName,
+                    Key: key,
+                    Body: createReadStream(filePath),
+                    ContentLength: fileStats.size
+                })
+            )
+
+            console.log(`✅ Sync successful`)
+            console.log(`   Local: ${filePath}`)
+            console.log(`   S3:    s3://${bucketName}/${key}`)
+            console.log(`   Size:  ${fileStats.size} bytes`)
+        } catch (error) {
+            console.error(`❌ Sync failed`)
+            console.error(`   Local: ${filePath}`)
+            console.error(`   S3:    s3://${bucketName}/${key}`)
+            console.error(`   Error: ${error.message}`)
         }
-
-        await s3Client.send(
-            new PutObjectCommand({
-                Bucket: bucketName,
-                Key: key,
-                Body: createReadStream(filePath),
-                ContentLength: fileStats.size
-            })
-        )
-
-        console.log(
-            `Uploaded ${filePath} → s3://${bucketName}/${key}`
-        )
     })
 }
 
