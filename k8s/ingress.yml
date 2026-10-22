@@ -50,7 +50,7 @@ spec:
                 port:
                   number: 80
 
-    - host: "*.preview.localhost"
+    - host: "*.preview.obsidian.devs.surf"
       http:
         paths:
           - pathType: Prefix
@@ -61,7 +61,7 @@ spec:
                 port:
                   number: 80
 
-    - host: "*.agent.localhost"
+    - host: "*.agent.obsidian.devs.surf"
       http:
         paths:
           - pathType: Prefix
