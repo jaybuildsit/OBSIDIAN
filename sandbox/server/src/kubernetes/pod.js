@@ -1,11 +1,6 @@
 import { k8sCoreV1Api } from "./config.js"
 
 export async function createPod(sandboxId, projectId) {
-    const agentImage = process.env.AGENT_IMAGE;
-
-    if (!agentImage) {
-        throw new Error("AGENT_IMAGE is not configured. Start the services with Skaffold.");
-    }
 
     const podManifest = {
         metadata: {
@@ -14,6 +9,7 @@ export async function createPod(sandboxId, projectId) {
                 sandboxId: sandboxId
             }
         },
+
         spec: {
 
             volumes: [
@@ -26,7 +22,7 @@ export async function createPod(sandboxId, projectId) {
             initContainers: [
                 {
                     name: "init-container",
-                    image: "template",
+                    image: "205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/template",
                     imagePullPolicy: "IfNotPresent",
                     command: ["sh", "-c", "cp -r /workspace/* /seed/"],
                     volumeMounts: [
@@ -40,7 +36,7 @@ export async function createPod(sandboxId, projectId) {
 
             containers: [
                 {
-                    image: "template",
+                    image: "205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/template",
                     imagePullPolicy: "IfNotPresent",
                     name: "sandbox-container",
                     ports: [
@@ -68,7 +64,7 @@ export async function createPod(sandboxId, projectId) {
                 },
 
                 {
-                    image: agentImage,
+                    image: "205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/agent",
                     imagePullPolicy: "IfNotPresent",
                     name: "agent-container",
                     ports: [
@@ -96,7 +92,7 @@ export async function createPod(sandboxId, projectId) {
                 },
 
                 {
-                    image: "sync-agent",
+                    image: "205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/sync-agent",
                     imagePullPolicy: "IfNotPresent",
                     name: "sync-agent-container",
 

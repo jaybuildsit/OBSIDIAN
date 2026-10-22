@@ -19,7 +19,7 @@ spec:
 
     spec:
       containers:
-        - image: router
+        - image: 205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/router
           name: router-server
 
           resources:

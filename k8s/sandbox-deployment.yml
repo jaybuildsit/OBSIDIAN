@@ -22,7 +22,7 @@ spec:
 
       containers:
         - name: main-sandbox-container
-          image: sandbox
+          image: 205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/sandbox
           imagePullPolicy: IfNotPresent
 
           ports:
@@ -55,12 +55,6 @@ spec:
                 secretKeyRef:
                   name: database
                   key: SANDBOX
-
-            - name: AGENT_IMAGE
-              valueFrom:
-                configMapKeyRef:
-                  name: sandbox-agent-image
-                  key: AGENT_IMAGE
 
           livenessProbe:
             httpGet:

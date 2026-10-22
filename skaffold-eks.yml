@@ -1,0 +1,84 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+
+metadata:
+  name: Obsidian
+
+build:
+  tagPolicy:
+    sha256: {}
+
+  platforms:
+    - linux/amd64
+
+  artifacts:
+    - image: 205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/ai-orchestration
+      context: ai-orchestration
+      docker:
+        dockerfile: dockerfile
+      sync:
+        infer:
+          - "src/**"
+
+    - image: 205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/notification
+      context: notification
+      docker:
+        dockerfile: dockerfile
+      sync:
+        infer:
+          - "src/**"
+
+    - image: 205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/auth
+      context: auth
+      docker:
+        dockerfile: dockerfile
+      sync:
+        infer:
+          - "src/**"
+
+    - image: 205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/agent
+      context: sandbox/agent
+      docker:
+        dockerfile: dockerfile
+
+    - image: 205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/sync-agent
+      context: sandbox/sync-agent
+      docker:
+        dockerfile: dockerfile
+
+    - image: 205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/router
+      context: sandbox/router
+      docker:
+        dockerfile: dockerfile
+
+    - image: 205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/sandbox
+      context: sandbox/server
+      docker:
+        dockerfile: dockerfile
+
+    - image: 205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/template
+      context: sandbox/templates
+      docker:
+        dockerfile: dockerfile
+
+manifests:
+  rawYaml:
+    - k8s/secrets.yml
+    - k8s/ai-deployment.yml
+    - k8s/ai-service.yml
+    - k8s/auth-deployment.yml
+    - k8s/auth-service.yml
+    - k8s/sandbox-deployment.yml
+    - k8s/sandbox-service.yml
+    - k8s/ingress.yml
+    - k8s/router-deployment.yml
+    - k8s/router-service.yml
+    - k8s/rbac-sa.yml
+    - k8s/rbac-role.yml
+    - k8s/rbac-binding.yml
+    - k8s/notification-deployment.yml
+    - k8s/notification-service.yml
+
+deploy:
+  logs:
+    prefix: container
