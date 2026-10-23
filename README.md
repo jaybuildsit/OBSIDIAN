@@ -130,7 +130,15 @@ Project and sandbox management endpoints require a valid JWT cookie or bearer to
 
 ## Screenshots and demo
 
-> Add product screenshots and a live demo link here.
+### Project dashboard
+
+![OBSIDIAN project dashboard](docs/screenshots/project-dashboard.png)
+
+### Workspace editor, preview, assistant, and terminal
+
+![OBSIDIAN project workspace](docs/screenshots/workspace-editor.png)
+
+> Live demo: add a public URL when available.
 
 ## Deployment
 
