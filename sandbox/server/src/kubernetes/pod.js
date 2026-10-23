@@ -1,5 +1,26 @@
 import { k8sCoreV1Api } from "./config.js"
 
+const REGISTRY = "205382053412.dkr.ecr.ap-southeast-2.amazonaws.com"
+
+// Requests are what the scheduler reserves on a node. Limits are the hard cap.
+// The old values reserved 1500Mi per sandbox, more than a t3.small node can
+// ever offer (about 1.4Gi), so sandbox pods stayed Pending forever.
+// Raise a LIMIT if a container gets OOMKilled; keep requests small.
+const resources = {
+    sandbox: {
+        requests: { cpu: "100m", memory: "192Mi" },
+        limits: { cpu: "500m", memory: "640Mi" }
+    },
+    agent: {
+        requests: { cpu: "25m", memory: "64Mi" },
+        limits: { cpu: "300m", memory: "256Mi" }
+    },
+    syncAgent: {
+        requests: { cpu: "25m", memory: "64Mi" },
+        limits: { cpu: "200m", memory: "192Mi" }
+    }
+}
+
 export async function createPod(sandboxId, projectId) {
 
     const podManifest = {
@@ -22,7 +43,7 @@ export async function createPod(sandboxId, projectId) {
             initContainers: [
                 {
                     name: "init-container",
-                    image: "205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/template",
+                    image: `${REGISTRY}/template`,
                     imagePullPolicy: "IfNotPresent",
                     command: ["sh", "-c", "cp -r /workspace/* /seed/"],
                     volumeMounts: [
@@ -36,7 +57,7 @@ export async function createPod(sandboxId, projectId) {
 
             containers: [
                 {
-                    image: "205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/template",
+                    image: `${REGISTRY}/template`,
                     imagePullPolicy: "IfNotPresent",
                     name: "sandbox-container",
                     ports: [
@@ -45,16 +66,7 @@ export async function createPod(sandboxId, projectId) {
                             name: "http"
                         }
                     ],
-                    resources: {
-                        limits: {
-                            cpu: "500m",
-                            memory: "1Gi"
-                        },
-                        requests: {
-                            cpu: "250m",
-                            memory: "500Mi"
-                        }
-                    },
+                    resources: resources.sandbox,
                     volumeMounts: [
                         {
                             name: "workspace-volume",
@@ -64,8 +76,8 @@ export async function createPod(sandboxId, projectId) {
                 },
 
                 {
-                    image: "205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/agent",
-                    imagePullPolicy: "IfNotPresent",
+                    image: `${REGISTRY}/agent`,
+                    imagePullPolicy: "Always",
                     name: "agent-container",
                     ports: [
                         {
@@ -73,16 +85,7 @@ export async function createPod(sandboxId, projectId) {
                             name: "http"
                         }
                     ],
-                    resources: {
-                        limits: {
-                            cpu: "500m",
-                            memory: "1Gi"
-                        },
-                        requests: {
-                            cpu: "250m",
-                            memory: "500Mi"
-                        }
-                    },
+                    resources: resources.agent,
                     volumeMounts: [
                         {
                             name: "workspace-volume",
@@ -92,7 +95,7 @@ export async function createPod(sandboxId, projectId) {
                 },
 
                 {
-                    image: "205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/sync-agent",
+                    image: `${REGISTRY}/sync-agent`,
                     imagePullPolicy: "IfNotPresent",
                     name: "sync-agent-container",
 
@@ -103,16 +106,7 @@ export async function createPod(sandboxId, projectId) {
                         }
                     ],
 
-                    resources: {
-                        limits: {
-                            cpu: "500m",
-                            memory: "1Gi"
-                        },
-                        requests: {
-                            cpu: "250m",
-                            memory: "500Mi"
-                        }
-                    },
+                    resources: resources.syncAgent,
 
                     volumeMounts: [
                         {
@@ -169,11 +163,13 @@ export async function createPod(sandboxId, projectId) {
 
 export async function deletePod(sandboxId) {
 
+    // With the object-style client API, gracePeriodSeconds belongs in the
+    // request object. The old second argument is a client config override, so
+    // the grace period was most likely being ignored (default is 30 seconds).
     const response = await k8sCoreV1Api.deleteNamespacedPod({
         namespace: "default",
-        name: `sandbox-pod-${sandboxId}`
-    }, {
-        gracePeriodSeconds: 0,
+        name: `sandbox-pod-${sandboxId}`,
+        gracePeriodSeconds: 0
     })
 
     return response

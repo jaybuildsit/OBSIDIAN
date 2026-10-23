@@ -10,16 +10,24 @@ const app = express();
 app.use((req, res, next) => {
     const origin = req.headers.origin;
 
-    if (origin === "http://localhost:5173") {
+    if (
+        origin === "http://localhost:5173" ||
+        origin === "https://obsidian.devs.surf"
+    ) {
         res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Access-Control-Allow-Credentials", "true");
+        res.setHeader(
+            "Access-Control-Allow-Methods",
+            "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        );
+        res.setHeader(
+            "Access-Control-Allow-Headers",
+            req.headers["access-control-request-headers"] ||
+                "Authorization, Content-Type, X-Requested-With"
+        );
         res.vary("Origin");
 
         if (req.method === "OPTIONS") {
-            res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
-            res.setHeader(
-                "Access-Control-Allow-Headers",
-                req.headers["access-control-request-headers"] || "Content-Type",
-            );
             return res.sendStatus(204);
         }
     }

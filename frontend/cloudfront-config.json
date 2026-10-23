@@ -1,0 +1,38 @@
+{
+  "CallerReference": "obsidian-frontend-1",
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "S3-obsidian-frontend",
+        "DomainName": "obsidian-frontend-205382053412.s3-website-ap-southeast-2.amazonaws.com",
+        "CustomOriginConfig": {
+          "HTTPPort": 80,
+          "HTTPSPort": 443,
+          "OriginProtocolPolicy": "http-only"
+        }
+      }
+    ]
+  },
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "S3-obsidian-frontend",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+    "Compress": true
+  },
+  "Aliases": {
+    "Quantity": 1,
+    "Items": [
+      "obsidian.devs.surf"
+    ]
+  },
+  "ViewerCertificate": {
+    "ACMCertificateArn": "arn:aws:acm:us-east-1:205382053412:certificate/1a7bdbd9-fdbf-44e7-b88e-80f5adce997d",
+    "SSLSupportMethod": "sni-only",
+    "MinimumProtocolVersion": "TLSv1.2_2021"
+  },
+  "Enabled": true,
+  "HttpVersion": "http2",
+  "DefaultRootObject": "index.html",
+  "Comment": "obsidian frontend"
+}

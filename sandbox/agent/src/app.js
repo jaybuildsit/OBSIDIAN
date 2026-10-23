@@ -10,6 +10,39 @@ import cors from "cors";
 
 const WORKING_DIR = "/workspace";
 
+// Comma-separated list. Override in the pod with ALLOWED_ORIGINS if needed.
+const ALLOWED_ORIGINS = (
+  process.env.ALLOWED_ORIGINS ||
+  "http://localhost:5173,https://obsidian.devs.surf"
+)
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+// Resolves a user-supplied relative path inside /workspace and rejects
+// anything that escapes it (for example ../../etc/passwd).
+const safePath = (file) => {
+  if (typeof file !== "string" || !file.trim()) {
+    throw new Error("Invalid path");
+  }
+
+  let relative = file.trim();
+
+  // Accept "/workspace/src/App.jsx", "/src/App.jsx" and "src/App.jsx" alike.
+  if (relative === WORKING_DIR || relative.startsWith(WORKING_DIR + "/")) {
+    relative = relative.slice(WORKING_DIR.length);
+  }
+  relative = relative.replace(/^[/\\]+/, "");
+
+  const full = path.resolve(WORKING_DIR, relative);
+
+  if (full !== WORKING_DIR && !full.startsWith(WORKING_DIR + path.sep)) {
+    throw new Error("Invalid path");
+  }
+
+  return full;
+};
+
 const app = express();
 
 /* =========================
@@ -18,8 +51,8 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST", "PATCH", "DELETE"],
+    origin: ALLOWED_ORIGINS,
+    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
   }),
 );
@@ -35,7 +68,7 @@ const httpServer = http.createServer(app);
 ========================= */
 
 app.use(morgan("dev"));
-app.use(express.json());
+app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 /* =========================
@@ -44,8 +77,8 @@ app.use(express.urlencoded({ extended: true }));
 
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST", "PATCH"],
+    origin: ALLOWED_ORIGINS,
+    methods: ["GET", "POST"],
     credentials: true,
   },
 });
@@ -70,24 +103,21 @@ io.on("connection", (socket) => {
     },
   });
 
-  // PTY → Browser
+  // PTY -> Browser
   ptyProcess.onData((data) => {
     socket.emit("terminal-output", data);
   });
 
-  // Browser → PTY
+  // Browser -> PTY
   socket.on("terminal-input", (data) => {
     ptyProcess.write(data);
   });
 
   // Terminal resize
-  socket.on("terminal-resize", ({ cols, rows }) => {
+  socket.on("terminal-resize", ({ cols, rows } = {}) => {
     if (!cols || !rows) return;
 
-    ptyProcess.resize(
-      Math.max(1, cols),
-      Math.max(1, rows),
-    );
+    ptyProcess.resize(Math.max(1, cols), Math.max(1, rows));
   });
 
   // Browser disconnected
@@ -160,10 +190,7 @@ app.get("/list-files", async (req, res) => {
   };
 
   try {
-    const files = await listFiles(
-      WORKING_DIR,
-      WORKING_DIR,
-    );
+    const files = await listFiles(WORKING_DIR, WORKING_DIR);
 
     res.status(200).json({
       message: "Files listed successfully",
@@ -184,7 +211,7 @@ app.get("/list-files", async (req, res) => {
 app.get("/read-files", async (req, res) => {
   const files = req.query.files;
 
-  if (!files) {
+  if (!files || typeof files !== "string") {
     return res.status(400).json({
       message: "No specific files in query parameter",
       status: "error",
@@ -195,21 +222,17 @@ app.get("/read-files", async (req, res) => {
 
   const results = await Promise.all(
     fileList.map(async (file) => {
-      const filePath = path.join(WORKING_DIR, file);
-
+      // safePath must be inside the try so a bad path becomes a per-file error.
       try {
-        const content = await fs.promises.readFile(
-          filePath,
-          "utf-8",
-        );
+        const filePath = safePath(file);
+        const content = await fs.promises.readFile(filePath, "utf-8");
 
         return {
           [filePath.replace(WORKING_DIR, "")]: content,
         };
       } catch (err) {
         return {
-          [filePath.replace(WORKING_DIR, "")]:
-            `Error reading file: ${err.message}`,
+          [`/${file}`]: `Error reading file: ${err.message}`,
         };
       }
     }),
@@ -238,24 +261,19 @@ app.patch("/update-files", async (req, res) => {
 
   const results = await Promise.all(
     updates.map(async (update) => {
-      const { file, content } = update;
-
-      const filePath = path.join(WORKING_DIR, file);
+      const { file, content } = update || {};
 
       try {
-        await fs.promises.writeFile(
-          filePath,
-          content,
-          "utf-8",
-        );
+        const filePath = safePath(file);
+
+        await fs.promises.writeFile(filePath, content, "utf-8");
 
         return {
           [filePath]: "File updated successfully",
         };
       } catch (err) {
         return {
-          [filePath]:
-            `Error updating file: ${err.message}`,
+          [`${WORKING_DIR}/${file}`]: `Error updating file: ${err.message}`,
         };
       }
     }),
@@ -277,36 +295,27 @@ app.post("/create-files", async (req, res) => {
   if (!files || !Array.isArray(files)) {
     return res.status(400).json({
       message:
-        'Invalid request body. Expected a JSON object with a "files" property containing',
+        'Invalid request body. Expected a JSON object with a "files" property containing an array of files',
       status: "error",
     });
   }
 
   const results = await Promise.all(
     files.map(async (fileObj) => {
-      const { file, content } = fileObj;
-
-      const filePath = path.join(WORKING_DIR, file);
+      const { file, content } = fileObj || {};
 
       try {
-        await fs.promises.mkdir(
-          path.dirname(filePath),
-          { recursive: true },
-        );
+        const filePath = safePath(file);
 
-        await fs.promises.writeFile(
-          filePath,
-          content,
-          "utf-8",
-        );
+        await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+        await fs.promises.writeFile(filePath, content, "utf-8");
 
         return {
-          [filePath]: "File updated successfully",
+          [filePath]: "File created successfully",
         };
       } catch (err) {
         return {
-          [filePath]:
-            `Error creating file: ${err.message}`,
+          [`${WORKING_DIR}/${file}`]: `Error creating file: ${err.message}`,
         };
       }
     }),

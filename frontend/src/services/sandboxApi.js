@@ -24,8 +24,38 @@ const requireSandboxId = (sandboxId) => {
   return sandboxId.trim();
 };
 
+/* =========================
+   SANDBOX ROUTING
+   VITE_SANDBOX_ROUTING = "path" (default) | "host"
+
+   path: https://app.obsidian.devs.surf/agent/<id>/list-files
+         (needs no wildcard DNS; the router must handle /agent/<id>/*)
+   host: https://<id>.agent.obsidian.devs.surf/list-files
+         (needs wildcard DNS for *.agent.obsidian.devs.surf)
+
+   Switch back to host mode later by setting VITE_SANDBOX_ROUTING=host
+   and rebuilding. No code change needed.
+========================= */
+
+const ROUTING = import.meta.env.VITE_SANDBOX_ROUTING || "path";
+const PATH_ORIGIN =
+  import.meta.env.VITE_SANDBOX_ORIGIN || "https://app.obsidian.devs.surf";
+const HOST_DOMAIN =
+  import.meta.env.VITE_SANDBOX_AGENT_DOMAIN || "agent.obsidian.devs.surf";
+
+// Origin only, e.g. https://app.obsidian.devs.surf
+export const sandboxOrigin = (sandboxId) =>
+  ROUTING === "host"
+    ? `https://${requireSandboxId(sandboxId)}.${HOST_DOMAIN}`
+    : PATH_ORIGIN;
+
+// Path prefix only, e.g. /agent/<id>  (empty in host mode)
+export const sandboxPrefix = (sandboxId) =>
+  ROUTING === "host" ? "" : `/agent/${requireSandboxId(sandboxId)}`;
+
+// Origin + prefix, used for plain fetch calls.
 export const sandboxHost = (sandboxId) =>
-  `http://${requireSandboxId(sandboxId)}.agent.localhost`;
+  `${sandboxOrigin(sandboxId)}${sandboxPrefix(sandboxId)}`;
 
 const sandboxFetch = (sandboxId, path, options = {}) => {
   return fetch(`${sandboxHost(sandboxId)}${path}`, {
@@ -38,11 +68,15 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // Polls the agent until it answers 200. Right after /create the agent URL
 // returns 504 for a few seconds (and the 504 has no CORS header, so the
 // browser throws a TypeError). Both cases just mean "not ready yet".
+// The wait between attempts grows from intervalMs up to maxIntervalMs so a
+// broken route does not get hammered.
 export const waitForAgent = async (
   sandboxId,
-  { timeoutMs = 60000, intervalMs = 500 } = {}
+  { timeoutMs = 60000, intervalMs = 500, maxIntervalMs = 3000 } = {}
 ) => {
   const deadline = Date.now() + timeoutMs;
+  let delay = intervalMs;
+  let lastError = "";
 
   while (Date.now() < deadline) {
     try {
@@ -51,14 +85,21 @@ export const waitForAgent = async (
       });
 
       if (response.ok) return;
-    } catch {
-      // Not ready yet, keep polling.
+
+      lastError = `HTTP ${response.status}`;
+    } catch (cause) {
+      // Not ready yet, or unreachable (DNS, CORS, network). Keep polling.
+      lastError = cause?.message || "network error";
     }
 
-    await sleep(intervalMs);
+    await sleep(delay);
+    delay = Math.min(Math.round(delay * 1.5), maxIntervalMs);
   }
 
-  throw new Error("Sandbox agent did not become ready in time.");
+  throw new Error(
+    `Sandbox agent did not become ready in time (${lastError || "no response"}). ` +
+      "Check that the sandbox address resolves and the router is reachable."
+  );
 };
 
 export const listProjects = async () => {

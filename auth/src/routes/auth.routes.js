@@ -70,10 +70,13 @@ router.get(
 
             res.cookie("token", token, {
                 httpOnly: true,
+                secure: true,
+                sameSite: "none",
+                domain: ".obsidian.devs.surf",
             });
 
 
-            res.redirect("http://localhost:5173");
+            res.redirect("https://obsidian.devs.surf");
 
         } catch (err) {
             console.error(
