@@ -1,3 +1,5 @@
+https://obsidian.devs.surf/api/auth/google
+
 # OBSIDIAN
 
 OBSIDIAN is a browser-based development workspace for React projects. It brings a code editor, live preview, terminal, and AI coding assistant together around an isolated, on-demand project sandbox.
