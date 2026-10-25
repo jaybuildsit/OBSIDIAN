@@ -7,6 +7,35 @@ import { refreshTTL } from "./config/redis.js";
 
 const app = express();
 
+// Sandbox ids are UUIDs. Anything else is rejected, so a bad value can never
+// turn into a bogus proxy target (that is what caused "TypeError: Invalid URL").
+const SANDBOX_ID_RE =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Path mode: https://obsidian.devs.surf/api/agent/<sandboxId>/<anything>
+// This travels over the existing /api/* path, so it needs no wildcard DNS.
+const AGENT_PREFIX = /^\/api\/agent\/([^/?#]+)/;
+
+// "/api/agent/<id>/list-files?x=1" -> "/list-files?x=1"
+const stripAgentPrefix = (path) => {
+    const rest = path.replace(AGENT_PREFIX, "");
+
+    return rest.startsWith("/") ? rest : `/${rest}`;
+};
+
+async function touch(sandboxId, label = "") {
+    try {
+        await refreshTTL(sandboxId);
+
+        console.log(`TTL refreshed for ${label}sandbox: ${sandboxId}`);
+    } catch (error) {
+        console.error(
+            `Failed to refresh ${label}TTL for sandbox ${sandboxId}:`,
+            error
+        );
+    }
+}
+
 app.use((req, res, next) => {
     const origin = req.headers.origin;
 
@@ -54,11 +83,8 @@ app.get("/api/status/readyz", (req, res) => {
 });
 
 
-
 const proxies = {};
 const agentProxies = {};
-
-
 
 
 const wsProxy = createProxyServer({
@@ -68,7 +94,6 @@ const wsProxy = createProxyServer({
 wsProxy.on("error", (err, req, socket) => {
     socket?.destroy();
 });
-
 
 
 function getProxy(sandboxId) {
@@ -85,7 +110,6 @@ function getProxy(sandboxId) {
 }
 
 
-
 function getAgentProxy(sandboxId) {
     const target = `http://sandbox-service-${sandboxId}:3000`;
 
@@ -100,128 +124,102 @@ function getAgentProxy(sandboxId) {
 }
 
 
-
-function resolveProxy(hostHeader = "") {
-    const host = hostHeader.split(":")[0];
-
-    const sandboxId = host.split(".")[0];
-    const type = host.split(".")[1];
-
-    if (type === "agent") {
-        return getAgentProxy(sandboxId);
-    }
-
-    if (type === "preview") {
-        return getProxy(sandboxId);
-    }
-
-    return null;
-}
+// One shared proxy for path mode. The target is chosen per request and the
+// /api/agent/<id> prefix is removed before the request reaches the sandbox.
+// (http-proxy-middleware restores req.url from req.originalUrl, so the prefix
+// has to be removed with pathRewrite, not by editing req.url.)
+const pathAgentProxy = createProxyMiddleware({
+    changeOrigin: true,
+    router: (req) => `http://sandbox-service-${req.sandboxId}:3000`,
+    pathRewrite: stripAgentPrefix,
+});
 
 
-
-
+// 1) Path mode: /api/agent/<id>/...
 app.use(async (req, res, next) => {
+    const match = AGENT_PREFIX.exec(req.originalUrl || req.url);
 
-    const proxy = resolveProxy(req.headers.host);
+    if (!match) {
+        return next();
+    }
 
-    if (!proxy) {
+    const sandboxId = match[1];
+
+    if (!SANDBOX_ID_RE.test(sandboxId)) {
+        return res.status(400).send("Invalid sandbox id");
+    }
+
+    req.sandboxId = sandboxId;
+
+    await touch(sandboxId);
+
+    return pathAgentProxy(req, res, next);
+});
+
+
+// 2) Host mode: <id>.agent.<domain> and <id>.preview.<domain>
+//    (needs wildcard DNS; also what previews use)
+app.use(async (req, res, next) => {
+    const host = (req.headers.host || "").split(":")[0];
+
+    const [sandboxId, type] = host.split(".");
+
+    if (
+        !SANDBOX_ID_RE.test(sandboxId || "") ||
+        (type !== "agent" && type !== "preview")
+    ) {
         return res.status(404).send("Unknown host");
     }
 
-    const host = req.headers.host?.split(":")[0];
+    const proxy =
+        type === "agent" ? getAgentProxy(sandboxId) : getProxy(sandboxId);
 
-    const sandboxId = host?.split(".")[0];
-
-    try {
-
-        await refreshTTL(sandboxId);
-
-        console.log(`♻️ TTL refreshed for sandbox: ${sandboxId}`);
-
-    } catch (error) {
-
-        console.error(
-            `❌ Failed to refresh TTL for sandbox ${sandboxId}:`,
-            error
-        );
-
-    }
+    await touch(sandboxId);
 
     return proxy(req, res, next);
 });
 
 
-
 const server = http.createServer(app);
-
 
 
 server.on("upgrade", async (req, socket, head) => {
 
     socket.on("error", () => socket.destroy());
 
-    const host = req.headers.host?.split(":")[0];
+    console.log(`WS upgrade request: ${req.headers.host} ${req.url}`);
 
-    const sandboxId = host?.split(".")[0];
+    let sandboxId;
+    let target;
 
-    const type = host?.split(".")[1];
+    const pathMatch = AGENT_PREFIX.exec(req.url || "");
 
-    console.log(
-        `WS upgrade request: ${req.headers.host} ${req.url}`
-    );
+    if (pathMatch) {
+        // Path mode, e.g. /api/agent/<id>/socket.io/?EIO=4&transport=websocket
+        sandboxId = pathMatch[1];
+        target = `http://sandbox-service-${sandboxId}:3000`;
+        req.url = stripAgentPrefix(req.url);
+    } else {
+        const host = (req.headers.host || "").split(":")[0];
 
+        const [id, type] = host.split(".");
 
+        sandboxId = id;
 
-    try {
-
-        await refreshTTL(sandboxId);
-
-        console.log(
-            `♻️ TTL refreshed for WebSocket sandbox: ${sandboxId}`
-        );
-
-    } catch (error) {
-
-        console.error(
-            `❌ Failed to refresh WebSocket TTL for sandbox ${sandboxId}:`,
-            error
-        );
-
+        if (type === "agent") {
+            target = `http://sandbox-service-${id}:3000`;
+        } else if (type === "preview") {
+            target = `http://sandbox-service-${id}`;
+        }
     }
 
-    if (type === "agent") {
-
-        wsProxy.ws(
-            req,
-            socket,
-            {
-                target: `http://sandbox-service-${sandboxId}:3000`,
-            },
-            head
-        );
-
+    if (!target || !SANDBOX_ID_RE.test(sandboxId || "")) {
+        return socket.destroy();
     }
 
+    await touch(sandboxId, "WebSocket ");
 
-    else if (type === "preview") {
-
-        wsProxy.ws(
-            req,
-            socket,
-            {
-                target: `http://sandbox-service-${sandboxId}`,
-            },
-            head
-        );
-
-    }
-
-    else {
-
-        socket.destroy();
-
-    }
+    wsProxy.ws(req, socket, { target }, head);
 });
 
 

@@ -1,0 +1,1 @@
+[{"op":"add","path":"/spec/rules/-","value":{"http":{"paths":[{"path":"/api/agent","pathType":"Prefix","backend":{"service":{"name":"router-service","port":{"number":80}}}}]}}}]

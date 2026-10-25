@@ -28,8 +28,9 @@ const requireSandboxId = (sandboxId) => {
    SANDBOX ROUTING
    VITE_SANDBOX_ROUTING = "path" (default) | "host"
 
-   path: https://app.obsidian.devs.surf/agent/<id>/list-files
-         (needs no wildcard DNS; the router must handle /agent/<id>/*)
+   path: https://obsidian.devs.surf/api/agent/<id>/list-files
+         (needs no wildcard DNS; same origin, so no CORS; the router handles
+         /api/agent/<id>/* and strips the prefix)
    host: https://<id>.agent.obsidian.devs.surf/list-files
          (needs wildcard DNS for *.agent.obsidian.devs.surf)
 
@@ -38,8 +39,10 @@ const requireSandboxId = (sandboxId) => {
 ========================= */
 
 const ROUTING = import.meta.env.VITE_SANDBOX_ROUTING || "path";
+// Same-origin by default: calls go to https://obsidian.devs.surf/api/agent/<id>.
+// For local dev (npm run dev), set VITE_SANDBOX_ORIGIN=https://obsidian.devs.surf
 const PATH_ORIGIN =
-  import.meta.env.VITE_SANDBOX_ORIGIN || "https://app.obsidian.devs.surf";
+  import.meta.env.VITE_SANDBOX_ORIGIN || window.location.origin;
 const HOST_DOMAIN =
   import.meta.env.VITE_SANDBOX_AGENT_DOMAIN || "agent.obsidian.devs.surf";
 
@@ -51,7 +54,7 @@ export const sandboxOrigin = (sandboxId) =>
 
 // Path prefix only, e.g. /agent/<id>  (empty in host mode)
 export const sandboxPrefix = (sandboxId) =>
-  ROUTING === "host" ? "" : `/agent/${requireSandboxId(sandboxId)}`;
+  ROUTING === "host" ? "" : `/api/agent/${requireSandboxId(sandboxId)}`;
 
 // Origin + prefix, used for plain fetch calls.
 export const sandboxHost = (sandboxId) =>

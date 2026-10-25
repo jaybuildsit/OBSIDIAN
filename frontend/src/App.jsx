@@ -27,12 +27,32 @@ function appMessage(text) {
   return { tone: 'working', label: copy || 'Working', detail: copy }
 }
 
+// The open workspace is remembered in the browser so a page refresh reopens it
+// instead of dropping back to the project list.
+const SANDBOX_KEY = 'obsidian.activeSandbox'
+const readSavedSandbox = () => {
+  try {
+    const raw = localStorage.getItem(SANDBOX_KEY)
+    const value = raw ? JSON.parse(raw) : null
+    return value?.sandboxId ? value : null
+  } catch {
+    return null
+  }
+}
+const writeSavedSandbox = (value) => {
+  try {
+    if (value) localStorage.setItem(SANDBOX_KEY, JSON.stringify(value))
+    else localStorage.removeItem(SANDBOX_KEY)
+  } catch { /* storage unavailable (private mode, blocked) - the app still works */ }
+}
+
 function App() {
   const [sandbox, setSandbox] = useState(null), [files, setFiles] = useState([]), [selectedFile, setSelectedFile] = useState(''), [content, setContent] = useState(''), [original, setOriginal] = useState('')
   const [projects, setProjects] = useState([]), [projectsLoading, setProjectsLoading] = useState(true), [creatingProject, setCreatingProject] = useState(false), [launchingProjectId, setLaunchingProjectId] = useState('')
   const [loadingFile, setLoadingFile] = useState(false), [saving, setSaving] = useState(false), [error, setError] = useState(''), [previewKey, setPreviewKey] = useState(0), [previewLoading, setPreviewLoading] = useState(false)
   const [prompt, setPrompt] = useState(''), [chat, setChat] = useState([]), [activity, setActivity] = useState([]), [agentBusy, setAgentBusy] = useState(false), [terminalOpen, setTerminalOpen] = useState(true), [terminalStatus, setTerminalStatus] = useState('Waiting for workspace')
   const [liveSteps, setLiveSteps] = useState([]), [turnStartedAt, setTurnStartedAt] = useState(0), [dockHeight, setDockHeight] = useState(260), [resizing, setResizing] = useState(false)
+  const [restoring, setRestoring] = useState(() => Boolean(readSavedSandbox()))
   const projectsRequestRef = useRef(null), creatingProjectRef = useRef(false), launchingProjectRef = useRef(false), abortRef = useRef(null)
   const terminalMount = useTerminal(sandbox?.sandboxId, setTerminalStatus)
   const dirty = selectedFile && content !== original
@@ -60,6 +80,32 @@ function App() {
     return request
   }, [])
   useEffect(() => { loadProjects() }, [loadProjects])
+
+  // On page load: if a workspace was open, check it is still alive and reopen it.
+  // If it has expired (sandboxes are deleted after a while) go to the project list.
+  useEffect(() => {
+    const saved = readSavedSandbox()
+    if (!saved) { setRestoring(false); return undefined }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const savedFiles = await listFiles(saved.sandboxId)
+        if (cancelled) return
+        setSandbox(saved)
+        setFiles(savedFiles)
+        setPreviewLoading(true)
+        setTerminalStatus('Connecting')
+        addActivity('Connected to workspace')
+        addActivity('Files Listed Successfully')
+      } catch {
+        writeSavedSandbox(null)
+      } finally {
+        if (!cancelled) setRestoring(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [addActivity])
+
   const createProject = async (title) => {
     if (creatingProjectRef.current || !title.trim()) return null
     creatingProjectRef.current = true
@@ -86,12 +132,13 @@ function App() {
       const { sandboxId, previewUrl } = await requestSandbox(project._id)
       const nextSandbox = { projectId: project._id, projectTitle: project.title, sandboxId, previewUrl }
       setSandbox(nextSandbox)
+      writeSavedSandbox(nextSandbox)
       setPreviewLoading(true)
       setTerminalStatus('Connecting')
       addActivity('Connected to workspace')
       await loadFiles(nextSandbox.sandboxId)
       addActivity('Files Listed Successfully')
-    } catch (cause) { setError(cause.message || 'Sandbox creation failed. Please try again.'); setSandbox(null) } finally {
+    } catch (cause) { setError(cause.message || 'Sandbox creation failed. Please try again.'); setSandbox(null); writeSavedSandbox(null) } finally {
       launchingProjectRef.current = false
       setLaunchingProjectId('')
     }
@@ -190,7 +237,7 @@ function App() {
   return <main className={`app-shell${resizing ? ' dragging' : ''}`} style={{ '--dock-h': `${dockHeight}px` }}>
     <TopBar sandbox={sandbox} />
     {error && <div className="notice error-notice"><CircleAlert size={16} /><span>{error}</span><button onClick={() => setError('')}><X size={15} /></button></div>}
-    {!sandbox ? <Welcome projects={projects} projectsLoading={projectsLoading} creatingProject={creatingProject} launchingProjectId={launchingProjectId} onCreateProject={createProject} onLaunchProject={launchProject} onReloadProjects={loadProjects} /> : <>
+    {!sandbox ? (restoring ? <div className="notice"><span>Reopening your workspace…</span></div> : <Welcome projects={projects} projectsLoading={projectsLoading} creatingProject={creatingProject} launchingProjectId={launchingProjectId} onCreateProject={createProject} onLaunchProject={launchProject} onReloadProjects={loadProjects} />) : <>
       <section className="workspace"><FileExplorer projectTitle={sandbox.projectTitle} files={files} selectedFile={selectedFile} dirty={dirty} onSelect={selectFile} onRefresh={() => loadFiles(sandbox.sandboxId)} />
         <CodeEditorPanel selectedFile={selectedFile} content={content} dirty={dirty} loading={loadingFile} saving={saving} language={languageFor(selectedFile)} onChange={setContent} onSave={saveFile} onClose={() => { setSelectedFile(''); setContent(''); setOriginal('') }} />
         <aside className="right-rail"><LivePreview previewUrl={sandbox.previewUrl} loading={previewLoading} previewKey={previewKey} onRefresh={() => { setPreviewLoading(true); setPreviewKey((key) => key + 1) }} onLoad={() => setPreviewLoading(false)} /><AssistantPanel prompt={prompt} chat={chat} busy={agentBusy} liveSteps={liveSteps} turnStartedAt={turnStartedAt} onPromptChange={setPrompt} onSubmit={invokeAgent} onStop={() => abortRef.current?.abort()} /></aside></section>
