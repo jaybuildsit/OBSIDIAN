@@ -3,7 +3,13 @@ import agent from "../agents/ai.agents.js";
 
 const agentRouter = Router();
 
+// CloudFront closes a connection that is silent for ~30 seconds. A model call that
+// writes a whole file can easily be silent that long, so send a heartbeat comment.
+const KEEP_ALIVE_MS = 10000;
+
 agentRouter.post("/invoke", async (req, res) => {
+    let keepAlive;
+
     try {
         const { message, projectId, sandboxId } = req.body;
 
@@ -27,10 +33,35 @@ agentRouter.post("/invoke", async (req, res) => {
             "X-Accel-Buffering": "no",
         });
 
-        const writer = (text) => {
-            if (res.writableEnded) return;
-            res.write(`data:${text}\n\n`);
+        // Stop the agent if the browser disconnects or the user presses Stop.
+        // (res "close" is used on purpose: req "close" fires as soon as the
+        // request body has been read on current Node versions.)
+        const controller = new AbortController();
+
+        res.on("close", () => {
+            clearInterval(keepAlive);
+            controller.abort();
+        });
+
+        const writer = (value) => {
+            if (res.writableEnded || res.destroyed) return;
+
+            const text = (typeof value === "string" ? value : JSON.stringify(value))
+                .replace(/[\r\n]+$/, "");
+
+            if (!text) return;
+
+            // One "data:" line per line of text, so multi-line text stays valid SSE.
+            res.write(
+                text.split(/\r?\n/).map((line) => `data:${line}`).join("\n") + "\n\n"
+            );
         };
+
+        keepAlive = setInterval(() => {
+            if (!res.writableEnded && !res.destroyed) {
+                res.write(": ping\n\n");
+            }
+        }, KEEP_ALIVE_MS);
 
         writer("Agent started");
 
@@ -50,6 +81,7 @@ agentRouter.post("/invoke", async (req, res) => {
                     writer,
                 },
                 streamMode: "custom",
+                signal: controller.signal,
             }
         );
 
@@ -60,13 +92,19 @@ agentRouter.post("/invoke", async (req, res) => {
 
         writer("Agent closed");
 
+        clearInterval(keepAlive);
         res.end();
 
     } catch (error) {
+        clearInterval(keepAlive);
+
         console.error("Error invoking agent:", error);
 
         if (res.headersSent) {
-            res.end();
+            if (!res.writableEnded && !res.destroyed) {
+                res.write(`data:Error: ${error.message || "Agent failed"}\n\n`);
+                res.end();
+            }
         } else {
             res.status(500).json({
                 error: "Failed to invoke agent",

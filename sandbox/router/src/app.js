@@ -16,6 +16,11 @@ const SANDBOX_ID_RE =
 // This travels over the existing /api/* path, so it needs no wildcard DNS.
 const AGENT_PREFIX = /^\/api\/agent\/([^/?#]+)/;
 
+// Preview path mode: https://obsidian.devs.surf/api/preview/<sandboxId>/...
+// The sandbox's Vite dev server runs with --base /api/preview/<sandboxId>/, so
+// the full path is forwarded unchanged (no prefix stripping, unlike the agent).
+const PREVIEW_PREFIX = /^\/api\/preview\/([^/?#]+)/;
+
 // "/api/agent/<id>/list-files?x=1" -> "/list-files?x=1"
 const stripAgentPrefix = (path) => {
     const rest = path.replace(AGENT_PREFIX, "");
@@ -134,6 +139,13 @@ const pathAgentProxy = createProxyMiddleware({
     pathRewrite: stripAgentPrefix,
 });
 
+// Preview proxy: Vite listens on port 80 of the sandbox Service (-> 5173).
+// No pathRewrite, because Vite itself serves under /api/preview/<id>/.
+const pathPreviewProxy = createProxyMiddleware({
+    changeOrigin: true,
+    router: (req) => `http://sandbox-service-${req.sandboxId}`,
+});
+
 
 // 1) Path mode: /api/agent/<id>/...
 app.use(async (req, res, next) => {
@@ -154,6 +166,28 @@ app.use(async (req, res, next) => {
     await touch(sandboxId);
 
     return pathAgentProxy(req, res, next);
+});
+
+
+// 1b) Preview path mode: /api/preview/<id>/...
+app.use(async (req, res, next) => {
+    const match = PREVIEW_PREFIX.exec(req.originalUrl || req.url);
+
+    if (!match) {
+        return next();
+    }
+
+    const sandboxId = match[1];
+
+    if (!SANDBOX_ID_RE.test(sandboxId)) {
+        return res.status(400).send("Invalid sandbox id");
+    }
+
+    req.sandboxId = sandboxId;
+
+    await touch(sandboxId);
+
+    return pathPreviewProxy(req, res, next);
 });
 
 
@@ -199,6 +233,11 @@ server.on("upgrade", async (req, socket, head) => {
         sandboxId = pathMatch[1];
         target = `http://sandbox-service-${sandboxId}:3000`;
         req.url = stripAgentPrefix(req.url);
+    } else if (PREVIEW_PREFIX.test(req.url || "")) {
+        // Vite hot-reload socket, e.g. /api/preview/<id>/?token=...
+        // The path is forwarded unchanged because Vite runs with that base.
+        sandboxId = PREVIEW_PREFIX.exec(req.url)[1];
+        target = `http://sandbox-service-${sandboxId}`;
     } else {
         const host = (req.headers.host || "").split(":")[0];
 

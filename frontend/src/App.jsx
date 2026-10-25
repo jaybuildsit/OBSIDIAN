@@ -87,22 +87,22 @@ function App() {
     const saved = readSavedSandbox()
     if (!saved) { setRestoring(false); return undefined }
     let cancelled = false
-    ;(async () => {
-      try {
-        const savedFiles = await listFiles(saved.sandboxId)
-        if (cancelled) return
-        setSandbox(saved)
-        setFiles(savedFiles)
-        setPreviewLoading(true)
-        setTerminalStatus('Connecting')
-        addActivity('Connected to workspace')
-        addActivity('Files Listed Successfully')
-      } catch {
-        writeSavedSandbox(null)
-      } finally {
-        if (!cancelled) setRestoring(false)
-      }
-    })()
+      ; (async () => {
+        try {
+          const savedFiles = await listFiles(saved.sandboxId)
+          if (cancelled) return
+          setSandbox(saved)
+          setFiles(savedFiles)
+          setPreviewLoading(true)
+          setTerminalStatus('Connecting')
+          addActivity('Connected to workspace')
+          addActivity('Files Listed Successfully')
+        } catch {
+          writeSavedSandbox(null)
+        } finally {
+          if (!cancelled) setRestoring(false)
+        }
+      })()
     return () => { cancelled = true }
   }, [addActivity])
 

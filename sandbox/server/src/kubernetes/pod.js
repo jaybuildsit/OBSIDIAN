@@ -2,6 +2,11 @@ import { k8sCoreV1Api } from "./config.js"
 
 const REGISTRY = "205382053412.dkr.ecr.ap-southeast-2.amazonaws.com"
 
+// "path": the Vite dev server runs under /api/preview/<sandboxId>/ so the preview
+//        can be served from the main domain (no wildcard DNS needed).
+// "host": Vite runs at the root, for https://<id>.preview.<domain> (needs wildcard DNS).
+const PREVIEW_PATH_MODE = (process.env.PREVIEW_MODE || "path") === "path"
+
 // Requests are what the scheduler reserves on a node. Limits are the hard cap.
 // The old values reserved 1500Mi per sandbox, more than a t3.small node can
 // ever offer (about 1.4Gi), so sandbox pods stayed Pending forever.
@@ -60,6 +65,10 @@ export async function createPod(sandboxId, projectId) {
                     image: `${REGISTRY}/template`,
                     imagePullPolicy: "IfNotPresent",
                     name: "sandbox-container",
+                    // Replaces the image's CMD ("npm run dev") to set Vite's base path.
+                    ...(PREVIEW_PATH_MODE
+                        ? { args: ["npm", "run", "dev", "--", "--base", `/api/preview/${sandboxId}/`] }
+                        : {}),
                     ports: [
                         {
                             containerPort: 5173,
@@ -77,7 +86,7 @@ export async function createPod(sandboxId, projectId) {
 
                 {
                     image: `${REGISTRY}/agent`,
-                    imagePullPolicy: "Always",
+                    imagePullPolicy: "IfNotPresent",
                     name: "agent-container",
                     ports: [
                         {

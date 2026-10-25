@@ -19,7 +19,7 @@ spec:
 
     spec:
       containers:
-        - image: 205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/ai-orchestration
+        - image: 205382053412.dkr.ecr.ap-southeast-2.amazonaws.com/ai-orchestration:v2
           name: ai-server
 
           resources:

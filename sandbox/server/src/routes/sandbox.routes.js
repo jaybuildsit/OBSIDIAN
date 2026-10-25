@@ -13,6 +13,11 @@ const router = Router();
 const SANDBOX_BASE_DOMAIN =
     process.env.SANDBOX_BASE_DOMAIN || "obsidian.devs.surf";
 
+// "path": previews are served at https://obsidian.devs.surf/api/preview/<id>/
+// "host": previews use https://<id>.preview.<domain> (needs wildcard DNS)
+const PREVIEW_MODE = process.env.PREVIEW_MODE || "path";
+const PUBLIC_ORIGIN = process.env.PUBLIC_ORIGIN || "https://obsidian.devs.surf";
+
 router.post("/project", authMiddleware, async (req, res) => {
     try {
         const title =
@@ -84,7 +89,10 @@ router.post("/create", authMiddleware, async (req, res) => {
         return res.status(201).json({
             message: "Sandbox created successfully",
             sandboxId,
-            previewUrl: `https://${sandboxId}.preview.${SANDBOX_BASE_DOMAIN}`,
+            previewUrl:
+                PREVIEW_MODE === "path"
+                    ? `${PUBLIC_ORIGIN}/api/preview/${sandboxId}/`
+                    : `https://${sandboxId}.preview.${SANDBOX_BASE_DOMAIN}`,
         });
     } catch (err) {
         console.error("Create sandbox failed:", err);

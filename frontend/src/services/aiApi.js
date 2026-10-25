@@ -35,6 +35,14 @@ export const streamAgent = async (
   let received = 0;
 
   const emit = (entry) => {
+    // Skip SSE comment lines such as ": ping". The server sends them as a
+    // heartbeat so proxies don't close a quiet connection.
+    const lines = entry.split(/\r?\n/).filter((line) => line.trim());
+
+    if (lines.length && lines.every((line) => line.startsWith(":"))) {
+      return;
+    }
+
     const event =
       entry
         .split(/\r?\n/)
