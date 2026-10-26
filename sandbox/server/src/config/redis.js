@@ -5,11 +5,14 @@ import { deleteService } from "../kubernetes/service.js";
 const redis = new Redis(process.env.REDIS_URI);
 const subscriber = new Redis(process.env.REDIS_URI);
 
-export async function createSandboxKey(sandboxId) {
+// The owner's user id is stored with the key. The router reads it to make sure
+// only the user who created a sandbox can reach its terminal, files and preview.
+export async function createSandboxKey(sandboxId, userId) {
     await redis.set(
         `sandbox:${sandboxId}`,
         JSON.stringify({
             status: "active",
+            userId: String(userId),
         }),
         "EX",
         60 * 20

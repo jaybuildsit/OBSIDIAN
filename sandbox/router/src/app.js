@@ -3,7 +3,8 @@ import morgan from "morgan";
 import http from "http";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { createProxyServer } from "httpxy";
-import { refreshTTL } from "./config/redis.js";
+import jwt from "jsonwebtoken";
+import { refreshTTL, getSandboxOwner } from "./config/redis.js";
 
 const app = express();
 
@@ -27,6 +28,89 @@ const stripAgentPrefix = (path) => {
 
     return rest.startsWith("/") ? rest : `/${rest}`;
 };
+
+// ---------- Authentication ----------
+// Same JWT the auth service issues: the "token" cookie, or Authorization: Bearer.
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// Hostname mode (<id>.agent.<domain>) is off by default. Without this, anyone
+// could reach a sandbox by sending a forged Host header to the load balancer.
+// If you turn it on later, the login cookie must also be valid on those hosts.
+const ALLOW_HOST_MODE = process.env.ALLOW_HOST_MODE === "true";
+
+if (!JWT_SECRET) {
+    console.error("JWT_SECRET is not set: every sandbox request will be rejected");
+}
+
+function readToken(req) {
+    const header = req.headers.authorization;
+
+    if (header && header.startsWith("Bearer ")) {
+        return header.slice(7);
+    }
+
+    for (const part of (req.headers.cookie || "").split(";")) {
+        const index = part.indexOf("=");
+
+        if (index === -1) continue;
+
+        if (part.slice(0, index).trim() === "token") {
+            try {
+                return decodeURIComponent(part.slice(index + 1).trim());
+            } catch {
+                return null;
+            }
+        }
+    }
+
+    return null;
+}
+
+// Logged in AND the sandbox belongs to this user.
+// Returns { ok: true } or { ok: false, status, message }.
+async function authorizeSandbox(req, sandboxId) {
+    if (!JWT_SECRET) {
+        return { ok: false, status: 500, message: "Server auth is not configured" };
+    }
+
+    const token = readToken(req);
+
+    if (!token) {
+        return { ok: false, status: 401, message: "Authentication required" };
+    }
+
+    let user;
+
+    try {
+        user = jwt.verify(token, JWT_SECRET);
+    } catch {
+        return { ok: false, status: 401, message: "Invalid or expired token" };
+    }
+
+    if (!user?.id) {
+        return { ok: false, status: 401, message: "Invalid token" };
+    }
+
+    let owner;
+
+    try {
+        owner = await getSandboxOwner(sandboxId);
+    } catch (error) {
+        console.error("Owner lookup failed:", error);
+
+        return { ok: false, status: 503, message: "Could not verify sandbox" };
+    }
+
+    if (!owner) {
+        return { ok: false, status: 404, message: "Sandbox not found or expired" };
+    }
+
+    if (String(owner) !== String(user.id)) {
+        return { ok: false, status: 403, message: "This sandbox belongs to another user" };
+    }
+
+    return { ok: true };
+}
 
 async function touch(sandboxId, label = "") {
     try {
@@ -163,6 +247,12 @@ app.use(async (req, res, next) => {
 
     req.sandboxId = sandboxId;
 
+    const auth = await authorizeSandbox(req, sandboxId);
+
+    if (!auth.ok) {
+        return res.status(auth.status).send(auth.message);
+    }
+
     await touch(sandboxId);
 
     return pathAgentProxy(req, res, next);
@@ -185,6 +275,12 @@ app.use(async (req, res, next) => {
 
     req.sandboxId = sandboxId;
 
+    const auth = await authorizeSandbox(req, sandboxId);
+
+    if (!auth.ok) {
+        return res.status(auth.status).send(auth.message);
+    }
+
     await touch(sandboxId);
 
     return pathPreviewProxy(req, res, next);
@@ -203,6 +299,16 @@ app.use(async (req, res, next) => {
         (type !== "agent" && type !== "preview")
     ) {
         return res.status(404).send("Unknown host");
+    }
+
+    if (!ALLOW_HOST_MODE) {
+        return res.status(404).send("Unknown host");
+    }
+
+    const auth = await authorizeSandbox(req, sandboxId);
+
+    if (!auth.ok) {
+        return res.status(auth.status).send(auth.message);
     }
 
     const proxy =
@@ -245,6 +351,10 @@ server.on("upgrade", async (req, socket, head) => {
 
         sandboxId = id;
 
+        if (!ALLOW_HOST_MODE) {
+            return socket.destroy();
+        }
+
         if (type === "agent") {
             target = `http://sandbox-service-${id}:3000`;
         } else if (type === "preview") {
@@ -253,6 +363,16 @@ server.on("upgrade", async (req, socket, head) => {
     }
 
     if (!target || !SANDBOX_ID_RE.test(sandboxId || "")) {
+        return socket.destroy();
+    }
+
+    const auth = await authorizeSandbox(req, sandboxId);
+
+    if (!auth.ok) {
+        socket.write(
+            `HTTP/1.1 ${auth.status} ${auth.message}\r\nConnection: close\r\n\r\n`
+        );
+
         return socket.destroy();
     }
 

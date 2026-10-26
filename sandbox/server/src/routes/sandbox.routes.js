@@ -69,7 +69,7 @@ router.post("/create", authMiddleware, async (req, res) => {
         const results = await Promise.allSettled([
             createPod(sandboxId, project._id.toString()),
             createService(sandboxId),
-            createSandboxKey(sandboxId),
+            createSandboxKey(sandboxId, req.user.id),
         ]);
 
         const failed = results.filter((result) => result.status === "rejected");

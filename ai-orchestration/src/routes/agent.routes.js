@@ -1,5 +1,6 @@
 import { Router } from "express";
 import agent from "../agents/ai.agents.js";
+import { requireSandboxOwner } from "../middlewares/sandbox.auth.js";
 
 const agentRouter = Router();
 
@@ -7,7 +8,7 @@ const agentRouter = Router();
 // writes a whole file can easily be silent that long, so send a heartbeat comment.
 const KEEP_ALIVE_MS = 10000;
 
-agentRouter.post("/invoke", async (req, res) => {
+agentRouter.post("/invoke", requireSandboxOwner, async (req, res) => {
     let keepAlive;
 
     try {
