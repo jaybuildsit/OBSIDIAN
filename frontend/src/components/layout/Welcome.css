@@ -1,0 +1,56 @@
+/* Welcome / home screen. All classes are prefixed "wc-" so nothing in App.css is touched. */
+.wc-page{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;overflow-y:auto;padding:56px 20px 0;background:radial-gradient(ellipse at 50% 20%,#fffaf3 0,#f7f2ea 46%,#f1ebe1 100%)}
+.wc-halo{position:absolute;top:30px;left:50%;width:min(1080px,94vw);height:540px;transform:translateX(-50%);border:1px solid #e8dfd3;border-radius:50%;pointer-events:none;opacity:.75}
+
+.wc-hero{position:relative;z-index:1;width:min(640px,100%);text-align:center}
+.wc-eyebrow{display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border:1px solid #e3d9cd;border-radius:999px;background:#fbf8f3;color:#9a5a3e;font:500 10px 'DM Mono',monospace;letter-spacing:.09em;text-transform:uppercase}
+.wc-hero h1{margin:26px 0 18px;color:#1f1814;font:500 clamp(40px,5.6vw,68px)/1 'DM Sans',Arial,sans-serif;letter-spacing:-.045em}
+.wc-hero h1 em{display:block;color:#b4552f;font:italic 400 1.04em/1.05 'Newsreader',Georgia,serif;letter-spacing:-.04em}
+.wc-lede{max-width:470px;margin:0 auto 28px;color:#6a6158;font-size:15px;line-height:1.65}
+
+.wc-create{display:flex;align-items:center;gap:10px;max-width:560px;margin:0 auto;padding:6px 6px 6px 14px;border:1px solid #e2d9cd;border-radius:12px;background:#fffdf9;box-shadow:0 1px 2px #3a2a1a0f,0 10px 30px -14px #3a2a1a2e;text-align:left}
+.wc-create:focus-within{border-color:#c58970;box-shadow:0 0 0 3px #c5897020}
+.wc-create-icon{flex:0 0 auto;color:#9b8f83}
+.wc-create input{min-width:0;flex:1;padding:9px 2px;border:0;outline:0;background:transparent;color:#2d241e;font-size:14px}
+.wc-create input::placeholder{color:#918679}
+.wc-create input:disabled{opacity:.6}
+.wc-stack{flex:0 0 auto;padding:0 10px;border-left:1px solid #ece4d9;color:#7f7469;font:11px 'DM Mono',monospace;white-space:nowrap}
+.wc-create-button{display:inline-flex;align-items:center;gap:7px;flex:0 0 auto;padding:10px 15px;border:0;border-radius:8px;background:#2a211b;color:#fff8ef;font-size:12.5px;font-weight:600;white-space:nowrap;transition:background .15s,transform .15s}
+.wc-create-button:hover:not(:disabled){background:#43332a;transform:translateY(-1px)}
+.wc-note{margin:14px 0 0;color:#857a6f;font-size:11.5px}
+
+.wc-projects{position:relative;z-index:1;width:min(720px,100%);margin:54px 0 0}
+.wc-projects-head{display:flex;align-items:center;gap:12px;margin-bottom:9px;color:#6f655b;font:10px 'DM Mono',monospace;letter-spacing:.09em;text-transform:uppercase}
+.wc-projects-title{margin-right:auto}
+.wc-projects-head b{margin-left:6px;padding:2px 6px;border-radius:999px;background:#ece4d9;color:#5f554c;font-weight:500}
+.wc-search{display:flex;align-items:center;gap:6px;padding:4px 9px;border:1px solid #e1d8cc;border-radius:7px;background:#fffdf9;color:#7d7268;letter-spacing:0;text-transform:none}
+.wc-search input{width:140px;border:0;outline:0;background:transparent;color:#3a2f27;font:11px 'DM Mono',monospace}
+.wc-icon-button{display:grid;place-items:center;padding:4px;border:0;background:none;color:#7d7268}
+.wc-icon-button:hover:not(:disabled){color:#2d251f}
+
+.wc-list{overflow:hidden;border:1px solid #e3dbd0;border-radius:12px;background:#fbf8f3;box-shadow:0 1px 2px #3a2a1a0a}
+.wc-row{display:flex;align-items:center;gap:14px;padding:13px 16px;transition:background .15s}
+.wc-row+.wc-row{border-top:1px solid #eee7de}
+.wc-row:hover{background:#fffdf9}
+.wc-chip{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border:1px solid #ecdcd0;border-radius:9px;background:#fbede4;color:#b4552f;font:500 12px 'DM Mono',monospace}
+.wc-row-main{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}
+.wc-row-main strong{overflow:hidden;color:#2a211b;font-size:14px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.wc-row-meta{display:flex;align-items:center;gap:8px;color:#6f655b;font-size:11.5px}
+.wc-tag{padding:1px 6px;border-radius:4px;background:#efe8de;color:#62584f;font:10px 'DM Mono',monospace}
+.wc-launch{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:96px;padding:8px 13px;border:1px solid #d8c9ba;border-radius:8px;background:#f3ebe0;color:#6c4a37;font-size:12px;font-weight:600;transition:background .15s,border-color .15s,color .15s}
+.wc-launch:hover:not(:disabled){border-color:#2a211b;background:#2a211b;color:#fff8ef}
+.wc-launch.busy:disabled{opacity:1;cursor:wait}
+.wc-feedback{display:flex;align-items:center;justify-content:center;gap:8px;min-height:64px;padding:16px;color:#6f655b;font-size:12px}
+
+.wc-foot{position:relative;z-index:1;display:flex;flex-wrap:wrap;justify-content:center;gap:12px 44px;width:100%;margin-top:auto;padding:46px 0 22px;color:#7a7066;font:10px 'DM Mono',monospace}
+
+@media(max-width:600px){
+  .wc-page{padding-top:36px}
+  .wc-stack{display:none}
+  .wc-create{flex-wrap:wrap;padding:8px}
+  .wc-create input{flex-basis:70%}
+  .wc-create-button{width:100%;justify-content:center}
+  .wc-row{padding:12px}
+  .wc-launch{min-width:84px}
+  .wc-tag{display:none}
+}

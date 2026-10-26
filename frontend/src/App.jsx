@@ -87,22 +87,22 @@ function App() {
     const saved = readSavedSandbox()
     if (!saved) { setRestoring(false); return undefined }
     let cancelled = false
-      ; (async () => {
-        try {
-          const savedFiles = await listFiles(saved.sandboxId)
-          if (cancelled) return
-          setSandbox(saved)
-          setFiles(savedFiles)
-          setPreviewLoading(true)
-          setTerminalStatus('Connecting')
-          addActivity('Connected to workspace')
-          addActivity('Files Listed Successfully')
-        } catch {
-          writeSavedSandbox(null)
-        } finally {
-          if (!cancelled) setRestoring(false)
-        }
-      })()
+    ;(async () => {
+      try {
+        const savedFiles = await listFiles(saved.sandboxId)
+        if (cancelled) return
+        setSandbox(saved)
+        setFiles(savedFiles)
+        setPreviewLoading(true)
+        setTerminalStatus('Connecting')
+        addActivity('Connected to workspace')
+        addActivity('Files Listed Successfully')
+      } catch {
+        writeSavedSandbox(null)
+      } finally {
+        if (!cancelled) setRestoring(false)
+      }
+    })()
     return () => { cancelled = true }
   }, [addActivity])
 
@@ -218,6 +218,23 @@ function App() {
     }
   }
 
+  // Back to the project list. The sandbox itself is not deleted: it expires on its own
+  // a little while after the last request.
+  const leaveWorkspace = () => {
+    const warnings = []
+    if (dirty) warnings.push('unsaved changes in the editor')
+    if (agentBusy) warnings.push('the assistant still working')
+    if (warnings.length && !window.confirm(`You have ${warnings.join(' and ')}. Leave anyway?`)) return
+    abortRef.current?.abort()
+    writeSavedSandbox(null)
+    setSandbox(null)
+    setFiles([]); setSelectedFile(''); setContent(''); setOriginal('')
+    setChat([]); setActivity([]); setLiveSteps([]); setPrompt('')
+    setPreviewLoading(false); setError('')
+    setTerminalStatus('Waiting for workspace')
+    loadProjects()
+  }
+
   const startDockResize = (event) => {
     event.preventDefault()
     const startY = event.clientY, startHeight = dockHeight, target = event.currentTarget
@@ -235,7 +252,7 @@ function App() {
     target.addEventListener('pointercancel', onUp)
   }
   return <main className={`app-shell${resizing ? ' dragging' : ''}`} style={{ '--dock-h': `${dockHeight}px` }}>
-    <TopBar sandbox={sandbox} />
+    <TopBar sandbox={sandbox} terminalStatus={terminalStatus} onLeave={leaveWorkspace} />
     {error && <div className="notice error-notice"><CircleAlert size={16} /><span>{error}</span><button onClick={() => setError('')}><X size={15} /></button></div>}
     {!sandbox ? (restoring ? <div className="notice"><span>Reopening your workspace…</span></div> : <Welcome projects={projects} projectsLoading={projectsLoading} creatingProject={creatingProject} launchingProjectId={launchingProjectId} onCreateProject={createProject} onLaunchProject={launchProject} onReloadProjects={loadProjects} />) : <>
       <section className="workspace"><FileExplorer projectTitle={sandbox.projectTitle} files={files} selectedFile={selectedFile} dirty={dirty} onSelect={selectFile} onRefresh={() => loadFiles(sandbox.sandboxId)} />
