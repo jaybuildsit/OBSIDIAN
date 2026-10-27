@@ -1,118 +1,157 @@
-https://obsidian.devs.surf/api/auth/google
-
 # OBSIDIAN
 
-OBSIDIAN is a browser-based development workspace for React projects. It brings a code editor, live preview, terminal, and AI coding assistant together around an isolated, on-demand project sandbox.
+OBSIDIAN is a browser-based development workspace for React projects. It combines a code editor, live preview, terminal, and AI coding assistant with an isolated, on-demand project sandbox.
 
-## Overview
+## What it does
 
-The React frontend talks to a set of Node.js services. Users can create and launch projects, edit files in a sandbox, preview changes, use a terminal, and ask an AI agent to inspect or update project files. Kubernetes provisions sandbox workloads; a sidecar syncs project files with Amazon S3.
+- Sign in with Google and create or browse your projects.
+- Launch a React + Vite workspace in a dedicated Kubernetes sandbox.
+- Browse files, edit them in Monaco Editor, save changes, and refresh the live preview.
+- Work in the sandbox through a browser terminal backed by a PTY and Socket.IO.
+- Ask the AI assistant to inspect and update project files. Progress is streamed to the UI using server-sent events.
+- Keep workspace files synchronized to Amazon S3. The sync agent restores and watches files under the project's S3 prefix.
+- Authenticate sandbox file, terminal, preview, and AI requests and restrict them to the sandbox owner.
+- Expire idle sandboxes through Redis key expiration; Kubernetes cleanup removes their pod and service.
+- Queue Google login notifications through RabbitMQ and deliver them by email.
 
-## Features
+The browser remembers the active sandbox ID in local storage so it can try to reopen the workspace after a refresh. Sandbox files are initialized from the React + Vite template; the sync agent persists workspace changes separately.
 
-- Create and list user projects.
-- Launch an isolated React + Vite workspace for a project.
-- Browse and edit workspace files with Monaco Editor; refresh the live preview after saving.
-- Use a browser terminal backed by a PTY and Socket.IO.
-- Send prompts to an AI agent, receive progress over server-sent events, and apply file changes.
-- Persist workspace files to S3 and remove idle sandbox resources after their Redis key expires.
-- Authenticate through Google OAuth in the auth service and issue an HTTP-only JWT cookie.
-- Queue login notifications through RabbitMQ for email delivery.
-
-## Tech stack
+## Technology
 
 | Area | Technologies |
 | --- | --- |
-| Frontend | React 19, Vite, Monaco Editor, xterm.js, Socket.IO client |
-| Backend | Node.js (ES modules), Express |
-| AI | LangChain agent with an NVIDIA-hosted model |
+| Frontend | React 19, Vite, Monaco Editor, xterm.js, Socket.IO client, Tailwind CSS |
+| Services | Node.js 24, Express, ES modules |
+| AI | LangChain agent, NVIDIA-hosted `meta/muse-glimmer-30b` model |
 | Identity and data | Google OAuth 2.0, JWT, MongoDB with Mongoose |
 | Messaging and cache | RabbitMQ, Redis |
-| Sandboxes and deployment | Kubernetes, Skaffold, Docker, AWS ECR, S3, CloudFront |
+| Sandbox | Kubernetes, React + Vite, node-pty, Amazon S3 |
+| Deployment and static hosting | Docker, Skaffold, Kubernetes, AWS ECR, S3, CloudFront |
 
 ## Architecture
 
 ```text
 Browser (React/Vite)
-  ├── /api/auth  ──> Auth service ──> MongoDB
-  │                                └──> RabbitMQ ──> Notification service ──> Email
-  ├── /api/sandbox ─> Sandbox manager ──> MongoDB, Redis, Kubernetes API
-  └── /api/ai ──────> AI orchestration ──> AI model provider
+  ├── /api/auth ─────> Auth service ──> MongoDB
+  │                                  └─> RabbitMQ ──> Notification service ──> Gmail
+  ├── /api/sandbox ──> Sandbox manager ──> MongoDB, Redis, Kubernetes API
+  └── /api/ai ───────> AI orchestration ──> NVIDIA model
 
 Sandbox router ──> per-project Kubernetes sandbox
-                     ├── React + Vite template
+                     ├── React + Vite preview
                      ├── workspace agent (files and terminal)
                      └── S3 sync agent
 ```
 
-The sandbox manager creates a pod and service for a project sandbox. The router forwards preview and agent traffic to that sandbox. The AI orchestration service streams agent progress and uses tools to list, read, and update workspace files. Redis expiration triggers sandbox cleanup.
+The sandbox manager records the sandbox owner in Redis and creates a pod and service. Each sandbox pod contains the seeded React + Vite workspace, an agent that exposes file and terminal operations, and a sync agent that restores and uploads files to the project's S3 prefix. The router checks the JWT and sandbox owner before proxying sandbox requests. Router activity refreshes the sandbox TTL; when its Redis key expires, the manager removes its Kubernetes resources.
 
-## Project structure
+The AI service checks the caller and sandbox ownership, then streams activity while its tools list, read, and update files in the sandbox. The notification service consumes the `auth_notification_queue` RabbitMQ queue and sends login notification emails.
+
+## Repository map
 
 | Path | Responsibility |
 | --- | --- |
-| `frontend/` | React workspace UI, API clients, editor, preview, assistant, and terminal |
+| `frontend/` | React workspace UI, project dashboard, editor, explorer, preview, assistant, terminal, and API clients |
 | `auth/` | Google OAuth, user records, JWT cookie, and login event publishing |
-| `ai-orchestration/` | AI invocation endpoint, streaming, model, and file-operation tools |
+| `ai-orchestration/` | AI invocation endpoint, streaming, model configuration, and file-operation tools |
 | `notification/` | RabbitMQ consumer and email delivery |
 | `sandbox/server/` | Project API, authentication middleware, and Kubernetes sandbox lifecycle |
-| `sandbox/router/` | HTTP and WebSocket proxying to sandbox workloads |
+| `sandbox/router/` | Authenticated HTTP and WebSocket proxying to sandbox workloads |
 | `sandbox/agent/` | Workspace file operations and PTY/Socket.IO terminal |
 | `sandbox/sync-agent/` | S3 restore and workspace file synchronization |
-| `sandbox/templates/` | React + Vite project template used to seed sandboxes |
-| `k8s/`, `skaffold*.yml` | Kubernetes resources and Skaffold build/deploy configuration |
-| `scripts/` | Deployment helper scripts |
+| `sandbox/templates/` | React + Vite project template used to seed each sandbox |
+| `k8s/` | Kubernetes deployments, services, ingress, RBAC, and example secrets |
+| `skaffold.yml` | Skaffold build and deployment configuration for the current Kubernetes context |
+| `skaffold-eks.yml` | Skaffold configuration targeting the configured AWS ECR registry and EKS platform |
+| `alb-*.json`, `nginx-*.json` | JSON patches for adding or removing agent and preview paths in ingress configurations |
+| `nginx.conf` | NGINX reverse-proxy configuration |
+| `frontend/bucket-policy.json`, `frontend/cloudfront-config.json` | Static frontend S3 and CloudFront configuration |
+| `trust-policy.json`, `ai-orchestration/iam-policy.json` | AWS role trust and IAM policy documents |
+| `scripts/` | Deployment helper scripts, including Skaffold agent-image handling |
+| `docs/screenshots/` | Project and workspace screenshots |
 
-## Installation
+Each service and the template has its own `package.json` and lockfile. There is no root package manifest or Docker Compose setup. `frontend/dist/` is generated by the frontend build.
 
-There is no root package manifest. Use Node.js 24 (the version used by the service Dockerfiles) and install dependencies in the packages you need:
+## Prerequisites
+
+- Node.js 24 and npm (the service Dockerfiles use `node:24-alpine`).
+- For a complete local workflow: MongoDB, Redis, RabbitMQ, Google OAuth credentials, NVIDIA API access, AWS access to the configured project bucket, and Kubernetes access for sandbox creation.
+- For deployment: a Kubernetes cluster, Skaffold, Docker, access to the configured image registry, the required Kubernetes Secrets and RBAC, and matching ingress, DNS, TLS, and static-hosting configuration.
+
+Do not commit credentials. `.env` files and `k8s/secrets.yml` are ignored by the repository; use local environment values and Kubernetes Secrets for real credentials. `k8s/secrets.example.yml` is a placeholder reference, not a production-ready Secret.
+
+## Install dependencies
+
+Install only the packages needed for your work, from the repository root:
 
 ```sh
-cd frontend && npm install
-cd ../auth && npm install
-cd ../ai-orchestration && npm install
-cd ../notification && npm install
-cd ../sandbox/server && npm install
-cd ../router && npm install
-cd ../agent && npm install
-cd ../sync-agent && npm install
-cd ../templates && npm install
+npm --prefix frontend install
+npm --prefix auth install
+npm --prefix ai-orchestration install
+npm --prefix notification install
+npm --prefix sandbox/server install
+npm --prefix sandbox/router install
+npm --prefix sandbox/agent install
+npm --prefix sandbox/sync-agent install
+npm --prefix sandbox/templates install
 ```
 
-Each service and the sandbox template has its own package manifest and dependency set.
+## Run locally
 
-## Environment variables
+Start the frontend development server:
 
-Provide values through the environment of each service. The table lists variable **names only**; use your own local or deployment values and do not commit credentials.
+```sh
+npm --prefix frontend run dev
+```
 
-| Service | Variables |
+Vite serves the UI at `http://localhost:5173`. Its `/api` proxy targets `http://localhost` on port 80. The API-backed UI therefore needs a local gateway or ingress on port 80 that routes requests to the services. The repository does not provide a complete local gateway or Compose environment; the supplied `nginx.conf` uses a fixed upstream address and must be adapted to your setup.
+
+Backend packages with a `dev` script can be started from the repository root with `npm --prefix <package-path> run dev` after setting their environment variables and starting their dependencies. The sync agent uses `npm --prefix sandbox/sync-agent start`. Services share container port 3000 (notification uses 4000), so run them in separate containers or configure a local orchestrator rather than starting them all on the same host port.
+
+The frontend alone can be built and checked with:
+
+```sh
+npm --prefix frontend run lint
+npm --prefix frontend run build
+```
+
+The service manifests do not define working automated test suites; most service `test` scripts are placeholders.
+
+## Configuration
+
+Set the following environment variables in the corresponding service. Never put real values in source control.
+
+| Component | Variables |
 | --- | --- |
 | Auth | `MONGO_URI`, `RABBITMQ_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `JWT_SECRET` |
-| AI orchestration | `NVIDIA_API_KEY` |
+| AI orchestration | `NVIDIA_API_KEY`, `JWT_SECRET`, `REDIS_URI` |
 | Notification | `RABBITMQ_URL`, `EMAIL_USER`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` |
-| Sandbox manager | `MONGO_URI`, `REDIS_URI`, `JWT_SECRET`, `SANDBOX_BASE_DOMAIN` (optional) |
-| Sandbox router | `REDIS_URI` |
-| Sandbox agent | `ALLOWED_ORIGINS` (optional, comma-separated) |
-| S3 sync agent | `PROJECT_ID`, `AWS_REGION`, and AWS credentials or an AWS credential provider |
-| Frontend build | `VITE_SANDBOX_ROUTING` (`path` or `host`), `VITE_SANDBOX_ORIGIN`, `VITE_SANDBOX_AGENT_DOMAIN` (optional) |
+| Sandbox manager | `MONGO_URI`, `REDIS_URI`, `JWT_SECRET`; optional `PREVIEW_MODE` (`path` or `host`), `PUBLIC_ORIGIN` (path-mode preview origin), and `SANDBOX_BASE_DOMAIN` (host-mode preview domain) |
+| Sandbox router | `REDIS_URI`, `JWT_SECRET`; set `ALLOW_HOST_MODE=true` to enable host-based agent and preview routing |
+| Sandbox agent | Optional `ALLOWED_ORIGINS` (comma-separated; defaults to localhost and the production frontend origin) |
+| S3 sync agent | `PROJECT_ID`, `AWS_REGION`, and AWS SDK credentials or a workload credential provider |
+| Frontend build | Optional `VITE_SANDBOX_ROUTING` (`path` by default or `host`), `VITE_SANDBOX_ORIGIN` (path-mode API origin), and `VITE_SANDBOX_AGENT_DOMAIN` (host-mode agent domain) |
 
-The frontend defaults to path-based sandbox routing. Configure the frontend, router, DNS, and ingress consistently if using host-based routing. The auth and notification services also rely on OAuth callback and email-provider configuration in their source.
+The sync agent uses the configured region and AWS credentials to access the `obsidian-project-bucket` bucket, storing each project's files under its `PROJECT_ID` prefix. It ignores `.env` files, `.git`, and `node_modules`.
 
-## Running locally
+The auth service's Google OAuth callback URL and post-login redirect are currently set in its source code. Configure the matching callback URL in Google OAuth and update the code if deploying to different domains. Use the same `JWT_SECRET` across the auth, AI, sandbox manager, and router services.
 
-To run the frontend development server:
+### Sandbox routing
 
-```sh
-cd frontend
-npm install
-npm run dev
-```
+The frontend defaults to path-based routing:
 
-Vite serves the UI at `http://localhost:5173`. Its `/api` proxy targets `http://localhost`, so API-backed features require a local gateway/ingress listening on port 80 and routing requests to the services.
+- Agent: `/api/agent/<sandbox-id>/...`
+- Preview: `/api/preview/<sandbox-id>/...`
 
-Backend packages expose `npm run dev` (the sync agent exposes `npm start`). Run the services with their required environment variables and dependencies configured. A complete local workflow also requires MongoDB, Redis, RabbitMQ, an AI provider key, AWS access for S3 synchronization, and Kubernetes access for sandbox creation. The services are configured on overlapping container ports, so they need separate containers or a Kubernetes environment; this repository does not include a root Compose setup.
+The Kubernetes `k8s/ingress.yml` routes `/api/auth`, `/api/sandbox`, and `/api/ai`, and includes wildcard preview and agent host rules. It does **not** include the `/api/agent` or `/api/preview` path routes required by the default path-based frontend and sandbox-manager settings. Add the appropriate paths for your ingress controller using the supplied `alb-patch.json` / `alb-preview.json` or `nginx-patch.json` / `nginx-preview.json` patches, and check the resulting ingress before deployment.
+
+Host-based routing uses `<sandbox-id>.agent.<domain>` and `<sandbox-id>.preview.<domain>`. It requires wildcard DNS and TLS, `VITE_SANDBOX_ROUTING=host`, `PREVIEW_MODE=host`, the correct `VITE_SANDBOX_AGENT_DOMAIN` and `SANDBOX_BASE_DOMAIN`, and `ALLOW_HOST_MODE=true` on the router. Keep frontend, manager, router, DNS, and ingress settings consistent. The router intentionally rejects host-based sandbox requests while `ALLOW_HOST_MODE` is disabled.
+
+New sandbox Redis keys initially expire after 20 minutes; router activity extends the TTL. A sandbox is not deleted when the user leaves the workspace; it is cleaned up after its key expires.
 
 ## API overview
+
+Project and sandbox-management routes require the JWT cookie or an `Authorization: Bearer` token. Sandbox routes are scoped to the authenticated project owner.
 
 | Endpoint | Description |
 | --- | --- |
@@ -120,48 +159,49 @@ Backend packages expose `npm run dev` (the sync agent exposes `npm start`). Run 
 | `GET /api/auth/google/callback` | Complete OAuth, issue the JWT cookie, and publish a login notification |
 | `GET /api/sandbox/project` | List the authenticated user's projects |
 | `POST /api/sandbox/project` | Create a project (`title`) |
-| `POST /api/sandbox/create` | Launch a sandbox for a project (`projectId`) |
+| `POST /api/sandbox/create` | Launch a sandbox for an owned project (`projectId`); returns `sandboxId` and `previewUrl` |
 | `POST /api/ai/invoke` | Invoke the AI agent (`message`, `projectId`, `sandboxId`); responds as an SSE stream |
-| `GET /list-files` | List files in a sandbox workspace |
-| `GET /read-files?files=<path>` | Read workspace file contents |
-| `PATCH /update-files` | Update files in a workspace |
-| `POST /create-files` | Create workspace files |
-| Socket.IO | Terminal input, output, resize, and exit events |
+| `GET /api/agent/<sandbox-id>/list-files` | List sandbox workspace files (path-based router URL) |
+| `GET /api/agent/<sandbox-id>/read-files?files=<path>` | Read one or more files |
+| `PATCH /api/agent/<sandbox-id>/update-files` | Update files with an `updates` array of `{ "file", "content" }` objects |
+| `POST /api/agent/<sandbox-id>/create-files` | Create files with a `files` array of `{ "file", "content" }` objects |
+| Socket.IO at `/api/agent/<sandbox-id>/socket.io` | Terminal events: `terminal-input`, `terminal-output`, `terminal-resize`, and `terminal-exit` |
+| `/api/preview/<sandbox-id>/...` | Path-based Vite preview proxy |
 
-Project and sandbox management endpoints require a valid JWT cookie or bearer token. The sandbox agent routes are proxied by the router and use the configured sandbox routing strategy.
+The agent and preview paths are authenticated by the router and require the sandbox owner's JWT. The path-based examples assume the ingress routes these prefixes to `router-service`.
 
-## Screenshots and demo
+## Screenshots
 
 ### Project dashboard
 
-![OBSIDIAN project dashboard](docs/screenshots/project-dashboard.png)
+![OBSIDIAN project dashboard](docs/screenshots/Screenshot%202026-10-27%20152845.png)
 
 ### Workspace editor, preview, assistant, and terminal
 
 ![OBSIDIAN project workspace](docs/screenshots/workspace-editor.png)
 
-> Live demo: add a public URL when available.
-
 ## Deployment
 
-The repository includes Dockerfiles for the services and a Skaffold Kubernetes deployment configuration. `skaffold.yml` targets the configured Kubernetes context; `skaffold-eks.yml` describes the EKS/ECR build configuration. Deployments require a working cluster, image-registry access, the Kubernetes secrets referenced by the deployments, and the required database, messaging, cache, OAuth, AI, and AWS resources.
+Review and adapt the manifests for your own cluster before deploying. In particular, verify image registries, ingress class and routes, hostnames, TLS, Kubernetes Secret names and keys, RBAC, and every service's required environment variables. `k8s/secrets.example.yml` is illustrative; the deployment manifests must reference the Secret names and keys actually created in your cluster. Do not commit `k8s/secrets.yml`.
 
-The frontend has separate S3 and CloudFront configuration files. Build its static assets with:
+The AI service requires `JWT_SECRET` and `REDIS_URI` at runtime for request and sandbox-owner checks, and the router requires `JWT_SECRET` to authorize sandbox requests. Ensure those values are provided by the AI and router deployment configurations; the checked-in deployment manifests do not currently define all of them. The Skaffold configurations reference `k8s/secrets.yml`.
+
+Build and deploy with the configuration matching your cluster:
 
 ```sh
-cd frontend
-npm run build
+skaffold run -f skaffold.yml
 ```
 
-Deploy the generated `frontend/dist/` directory to the configured static hosting origin and serve it through CloudFront.
+For the EKS/ECR configuration:
 
-## Future improvements
+```sh
+skaffold run -f skaffold-eks.yml
+```
 
-- Add automated tests and a root-level development workflow.
-- Document reproducible local infrastructure and deployment prerequisites.
-- Align and validate the sandbox routing modes across the frontend, router, and ingress.
-- Add API schema documentation and operational guidance.
+The EKS configuration targets `linux/amd64` and the registry configured in that file. The Skaffold hooks call `scripts/set-agent-image.js` to configure the sandbox manager with the newly built agent image and wait for its rollout.
+
+To publish the frontend, build it with `npm --prefix frontend run build`, then upload `frontend/dist/` to your configured S3 static-hosting origin and serve it through CloudFront. Review `frontend/bucket-policy.json` and `frontend/cloudfront-config.json` and replace account-, domain-, certificate-, and bucket-specific values as appropriate before using them.
 
 ## License
 
-No root `LICENSE` file is present. Confirm the project's intended license and add a license file before redistribution. Individual package manifests specify ISC, but do not define a repository-wide license.
+There is no root `LICENSE` file. Individual package manifests specify ISC, but they do not establish a repository-wide license. Confirm the intended project license and add a root license file before redistribution.
